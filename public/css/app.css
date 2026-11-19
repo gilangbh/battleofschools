@@ -443,3 +443,24 @@ tr.is-mine{box-shadow:inset 4px 0 0 var(--navy)}
 @media (prefers-reduced-motion:reduce){.is-changed,.tv-conn::before{animation:none!important}}
 
 .lineup-form .button{justify-self:start;min-width:8rem}
+
+/* Admin fixtures: one table, one save */
+.visually-hidden{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
+.autofill{display:flex;flex-wrap:wrap;align-items:end;gap:.6rem .8rem;border:1px solid var(--line);background:#fffdf6;padding:.8rem 1rem;margin-block:1rem}
+.autofill-title{flex:1 1 100%;margin:0;font-weight:600;font-size:.95rem;max-width:none}
+.autofill label{flex:0 1 11rem}
+.autofill input,.autofill select{min-height:42px;padding:6px 8px;font-size:15px}
+.autofill .footnote{flex:1 1 16rem;margin:0}
+.fx-table td{padding-block:.3rem!important}
+.fx-round th{font-weight:900;font-size:1rem;letter-spacing:-.03em;padding-top:1rem!important}
+.fx-round td,.fx-round th{background:#1430590d;border-top:2px solid var(--navy)}
+.fx-round .footnote{font-size:12px}
+.fx-del{border:0;background:none;color:#6b7a8d;font-size:1.3rem;line-height:1;width:2.4rem;height:2.4rem}
+.fx-del:hover{background:var(--red);color:#fff}
+.is-touched{background:#c6dc7460!important}
+.save-bar{position:sticky;bottom:0;z-index:10;display:flex;align-items:center;gap:1rem;flex-wrap:wrap;background:var(--cream);border-top:1px solid var(--navy);padding:.7rem 0}
+.save-note{font-size:.85rem;color:#4d5e74}
+.save-bar.is-dirty .button{background:var(--lime);color:var(--navy);border-color:var(--lime)}
+.save-bar.is-dirty .save-note{color:var(--navy);font-weight:600}
+.autofill-title{width:100%;max-width:none!important;flex:none}
+.save-bar .button{transition:none}

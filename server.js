@@ -23,7 +23,7 @@ const PORT = Number(process.env.PORT) || 3000;
 const app = express();
 app.set('trust proxy', 1);
 app.disable('x-powered-by');
-app.use(express.urlencoded({ extended: false, limit: '200kb' }));
+app.use(express.urlencoded({ extended: false, limit: '200kb', parameterLimit: 5000 }));
 app.use(express.static(path.join(process.cwd(), 'public'), { maxAge: isProd ? '1h' : 0 }));
 app.use(sessionMiddleware);
 app.use(sameOrigin);
@@ -414,30 +414,37 @@ app.post('/admin/showdown', admin, (req, res) => {
   back(res, '/admin?tab=setup', 'msg', 'Showdown added. Set its schools in the table.');
 });
 
-app.post('/admin/showdown/:id', admin, (req, res) => {
-  const id = Number(req.params.id);
+// The whole fixtures table is saved in one go.
+app.post('/admin/showdowns', admin, (req, res) => {
   const valid = new Set(all('SELECT id FROM teams').map((t) => t.id));
-  const a = valid.has(req.body.team_a) ? req.body.team_a : null;
-  const b = valid.has(req.body.team_b) ? req.body.team_b : null;
-  if (a && a === b) return back(res, '/admin?tab=setup', 'err', 'A school cannot play itself.');
-  const sd = get('SELECT * FROM showdowns WHERE id = ?', id);
-  if (!sd) return res.status(404).send('Not found.');
-  const time = /^\d{2}:\d{2}$/.test(req.body.start_time || '') ? req.body.start_time : null;
-  const court = String(req.body.court || '').trim().slice(0, 40) || null;
+  const rows = all('SELECT * FROM showdowns');
+  const next = [];
+  for (const sd of rows) {
+    if (req.body[`team_a_${sd.id}`] === undefined) continue;
+    const a = valid.has(req.body[`team_a_${sd.id}`]) ? req.body[`team_a_${sd.id}`] : null;
+    const b = valid.has(req.body[`team_b_${sd.id}`]) ? req.body[`team_b_${sd.id}`] : null;
+    if (a && a === b) return back(res, '/admin?tab=setup', 'err', 'A school cannot play itself. Nothing was saved.');
+    const t = req.body[`time_${sd.id}`] || '';
+    const time = /^\d{2}:\d{2}$/.test(t) ? t : null;
+    const court = String(req.body[`court_${sd.id}`] || '').trim().slice(0, 40) || null;
+    if (sd.team_a !== a || sd.team_b !== b || sd.start_time !== time || sd.court !== court) next.push({ sd, a, b, time, court });
+  }
   tx(() => {
-    if (sd.team_a !== a || sd.team_b !== b) {
-      // Lineups belong to the schools that were removed, so they cannot carry over.
-      run('DELETE FROM lineups WHERE match_id IN (SELECT id FROM matches WHERE showdown_id = ?) AND team_id NOT IN (?, ?)', id, a || '', b || '');
-      run('DELETE FROM tickets WHERE match_id IN (SELECT id FROM matches WHERE showdown_id = ?) AND team_id NOT IN (?, ?)', id, a || '', b || '');
+    for (const { sd, a, b, time, court } of next) {
+      if (sd.team_a !== a || sd.team_b !== b) {
+        // Lineups belong to the schools that were removed, so they cannot carry over.
+        run('DELETE FROM lineups WHERE match_id IN (SELECT id FROM matches WHERE showdown_id = ?) AND team_id NOT IN (?, ?)', sd.id, a || '', b || '');
+        run('DELETE FROM tickets WHERE match_id IN (SELECT id FROM matches WHERE showdown_id = ?) AND team_id NOT IN (?, ?)', sd.id, a || '', b || '');
+      }
+      run('UPDATE showdowns SET team_a = ?, team_b = ?, start_time = ?, court = ? WHERE id = ?', a, b, time, court, sd.id);
     }
-    run('UPDATE showdowns SET team_a = ?, team_b = ?, start_time = ?, court = ? WHERE id = ?', a, b, time, court, id);
   });
-  back(res, '/admin?tab=setup', 'msg', 'Showdown saved.');
+  back(res, '/admin?tab=setup#fixtures', 'msg', next.length ? `Saved ${next.length} showdown${next.length === 1 ? '' : 's'}.` : 'Nothing had changed.');
 });
 
 app.post('/admin/showdown/:id/delete', admin, (req, res) => {
   run('DELETE FROM showdowns WHERE id = ?', Number(req.params.id));
-  back(res, '/admin?tab=setup', 'msg', 'Showdown deleted.');
+  back(res, '/admin?tab=setup#fixtures', 'msg', 'Showdown deleted.');
 });
 
 app.post('/admin/knockout/fill', admin, (req, res) => {

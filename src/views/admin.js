@@ -16,23 +16,42 @@ function setupTab(state) {
   </form>
 </section>
 
-<section><h2>2. Fixtures</h2>
-  <p>“Generate” builds five rounds where every school meets all five schools in the other group, plus two semifinals and a final. Then edit any showdown to match the actual draw, and add times and courts.</p>
+<section id="fixtures"><h2>2. Fixtures</h2>
+  <p>“Generate” builds five rounds where every school meets all five schools in the other group, plus two semifinals and a final.</p>
   <form method="post" action="/admin/fixtures/generate" data-confirm="This deletes all existing fixtures, lineups and scores. Continue?">
-    <button class="button ${state.showdowns.length ? 'ghost' : 'lime'}" type="submit">${state.showdowns.length ? 'Regenerate all fixtures' : 'Generate fixtures'}</button>
+    <button class="button ${state.showdowns.length ? 'ghost small' : 'lime'}" type="submit">${state.showdowns.length ? 'Regenerate all fixtures' : 'Generate fixtures'}</button>
   </form>
-  ${state.showdowns.length ? h`<div class="table-scroll"><table class="tournament-table admin-table">
-    <thead><tr><th scope="col">Round</th><th scope="col">School A</th><th scope="col">School B</th><th scope="col">Time</th><th scope="col">Court</th><th scope="col"></th></tr></thead>
-    <tbody>${state.showdowns.map((sd) => h`<tr>
-      <th scope="row">${showdownTitle(sd)}</th>
-      <td><select name="team_a" form="sd-${sd.id}" aria-label="School A">${teamOptions(sd.team_a)}</select></td>
-      <td><select name="team_b" form="sd-${sd.id}" aria-label="School B">${teamOptions(sd.team_b)}</select></td>
-      <td><input type="time" name="start_time" form="sd-${sd.id}" value="${sd.start_time || ''}" aria-label="Start time"></td>
-      <td><select name="court" form="sd-${sd.id}" aria-label="Court">${opt('', 'Not set', !sd.court)}${state.courts.map((c) => opt(c, c, sd.court === c))}</select></td>
-      <td class="row-actions"><form method="post" action="/admin/showdown/${sd.id}" id="sd-${sd.id}"><button class="button small" type="submit">Save</button></form>
-        <form method="post" action="/admin/showdown/${sd.id}/delete" data-confirm="Delete this showdown and its scores?"><button class="link-button" type="submit">Delete</button></form></td>
-    </tr>`)}</tbody>
+  ${state.showdowns.length ? h`
+  <div class="autofill" data-autofill>
+    <p class="autofill-title">Fill times and courts for every round</p>
+    <label>First round starts <input type="time" data-af="start" value="09:00"></label>
+    <label>Minutes per round <input type="number" data-af="gap" min="5" max="240" step="5" value="45"></label>
+    <label>First court <select data-af="first">${state.courts.map((c, i) => opt(i, c, i === 0))}</select></label>
+    <button class="button small lime" type="button" data-af="go">Fill the table</button>
+    <span class="footnote" data-af="note">Showdown 1 of a round goes on the first court, showdown 2 on the next, and so on. Nothing is saved until you press Save all.</span>
+  </div>
+  <form method="post" action="/admin/showdowns" id="fx" data-dirty-form>
+  <div class="table-scroll"><table class="tournament-table admin-table fx-table">
+    <thead><tr><th scope="col">School A</th><th scope="col">School B</th><th scope="col">Time</th><th scope="col">Court</th><th scope="col"><span class="visually-hidden">Delete</span></th></tr></thead>
+    ${[...new Set(state.showdowns.map((sd) => `${sd.stage}:${sd.round}`))].map((key) => {
+      const sds = state.showdowns.filter((sd) => `${sd.stage}:${sd.round}` === key);
+      const title = sds[0].stage === 'group' ? `Round ${sds[0].round}` : sds[0].stage === 'semi' ? 'Semifinals' : showdownTitle(sds[0]);
+      return h`<tbody data-round>
+      <tr class="fx-round"><th scope="rowgroup" colspan="2">${title}</th>
+        <td><input type="time" data-round-time aria-label="Time for all of ${title}" title="Sets the time for every showdown in ${title}"></td>
+        <td colspan="2"><span class="footnote">Set a time here to apply it to the whole round</span></td></tr>
+      ${sds.map((sd) => h`<tr>
+        <td><select name="team_a_${sd.id}" aria-label="School A">${teamOptions(sd.team_a)}</select></td>
+        <td><select name="team_b_${sd.id}" aria-label="School B">${teamOptions(sd.team_b)}</select></td>
+        <td><input type="time" name="time_${sd.id}" value="${sd.start_time || ''}" aria-label="Start time" data-fx="time"></td>
+        <td><select name="court_${sd.id}" aria-label="Court" data-fx="court">${opt('', 'Not set', !sd.court)}${state.courts.map((c) => opt(c, c, sd.court === c))}</select></td>
+        <td><button class="fx-del" type="submit" form="del-${sd.id}" aria-label="Delete this showdown" title="Delete this showdown">×</button></td>
+      </tr>`)}</tbody>`;
+    })}
   </table></div>
+  <div class="save-bar"><button class="button" type="submit">Save all</button><span class="save-note" data-dirty-note>No unsaved changes.</span></div>
+  </form>
+  ${state.showdowns.map((sd) => h`<form method="post" action="/admin/showdown/${sd.id}/delete" id="del-${sd.id}" data-confirm="Delete this showdown and its scores?"></form>`)}
   <form method="post" action="/admin/showdown" class="inline-row">
     <label>Add a showdown <select name="stage">${Object.entries(STAGE_LABEL).map(([k, v]) => opt(k, v, false))}</select></label>
     <label>Round number <input type="number" name="round" min="1" max="20" value="1" required></label>

@@ -80,3 +80,50 @@ document.querySelectorAll('.dm').forEach((card) => {
   });
   paint();
 });
+
+// Admin fixtures: fill times and courts in bulk, and track unsaved changes.
+(() => {
+  const form = document.querySelector('[data-dirty-form]');
+  if (!form) return;
+  const bar = form.querySelector('.save-bar');
+  const note = form.querySelector('[data-dirty-note]');
+  const fields = [...form.querySelectorAll('[name]')];
+  const initial = new Map(fields.map((f) => [f, f.value]));
+  let saving = false;
+  const review = () => {
+    let n = 0;
+    fields.forEach((f) => { const changed = f.value !== initial.get(f); f.classList.toggle('is-touched', changed); if (changed) n++; });
+    bar.classList.toggle('is-dirty', n > 0);
+    note.textContent = n ? n + ' unsaved change' + (n === 1 ? '' : 's') + '. Press Save all.' : 'No unsaved changes.';
+    return n;
+  };
+  form.addEventListener('input', review);
+  form.addEventListener('change', review);
+  form.addEventListener('submit', () => { saving = true; });
+  window.addEventListener('beforeunload', (e) => { if (!saving && review() > 0) e.preventDefault(); });
+
+  const set = (el, value) => { if (el && el.value !== value) el.value = value; };
+  form.querySelectorAll('[data-round-time]').forEach((input) => input.addEventListener('change', () => {
+    if (!input.value) return;
+    input.closest('tbody').querySelectorAll('[data-fx=time]').forEach((t) => set(t, input.value));
+    review();
+  }));
+
+  const box = document.querySelector('[data-autofill]');
+  if (!box) return;
+  const af = (k) => box.querySelector('[data-af=' + k + ']');
+  af('go').addEventListener('click', () => {
+    const [hh, mm] = (af('start').value || '09:00').split(':').map(Number);
+    const gap = Math.max(5, Number(af('gap').value) || 45);
+    const first = Number(af('first').value) || 0;
+    const courts = [...af('first').options].map((o) => o.textContent);
+    form.querySelectorAll('tbody[data-round]').forEach((round, r) => {
+      const mins = hh * 60 + mm + r * gap;
+      const time = String(Math.floor(mins / 60) % 24).padStart(2, '0') + ':' + String(mins % 60).padStart(2, '0');
+      round.querySelectorAll('[data-fx=time]').forEach((t) => set(t, time));
+      round.querySelectorAll('[data-fx=court]').forEach((c, i) => set(c, courts[(first + i) % courts.length]));
+    });
+    const n = review();
+    af('note').textContent = n ? 'Table filled. Adjust anything by hand, then press Save all.' : 'The table already had these times and courts.';
+  });
+})();

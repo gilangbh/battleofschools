@@ -102,7 +102,7 @@ export function layout({ title, body, user = null, bodyClass = '', scripts = [],
 <link rel="apple-touch-icon" href="/assets/icon.png">
 <link rel="preload" href="/assets/poppins-black.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="stylesheet" href="/css/tournament.css?v=1">
-<link rel="stylesheet" href="/css/app.css?v=2">
+<link rel="stylesheet" href="/css/app.css?v=4">
 ${scripts.map((s) => h`<script src="${s}" defer></script>`)}
 </head>
 <body class="${bodyClass}">
