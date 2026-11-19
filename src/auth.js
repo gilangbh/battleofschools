@@ -4,7 +4,7 @@ import { get, run } from './db.js';
 const COOKIE = 'bos_sid';
 const SESSION_MS = 14 * 24 * 60 * 60 * 1000;
 export const EMAIL_LINK_MS = 20 * 60 * 1000;
-export const ADMIN_LINK_MS = 3 * 24 * 60 * 60 * 1000;
+export const ADMIN_LINK_MS = 7 * 24 * 60 * 60 * 1000;
 
 const sha = (s) => crypto.createHash('sha256').update(s).digest('hex');
 const newToken = () => crypto.randomBytes(32).toString('base64url');

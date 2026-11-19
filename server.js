@@ -467,10 +467,10 @@ app.post('/admin/users', admin, (req, res) => {
 // replace each with the real person's email once the organizer provides it.
 app.post('/admin/users/seed', admin, (req, res) => {
   let n = 0;
-  if (!get("SELECT 1 AS x FROM users WHERE role = 'desk'")) { run("INSERT INTO users (email, name, role) VALUES ('desk@bos.invalid', 'Scoring desk', 'desk')"); n++; }
+  if (!get("SELECT 1 AS x FROM users WHERE role = 'desk'")) { run("INSERT INTO users (email, name, role) VALUES ('desk@bos.local', 'Scoring desk', 'desk')"); n++; }
   for (const t of all('SELECT id, name FROM teams ORDER BY sort')) {
     if (get("SELECT 1 AS x FROM users WHERE role = 'captain' AND team_id = ?", t.id)) continue;
-    run("INSERT INTO users (email, name, role, team_id) VALUES (?, ?, 'captain', ?)", `captain.${t.id}@bos.invalid`, `${t.name} captain`, t.id);
+    run("INSERT INTO users (email, name, role, team_id) VALUES (?, ?, 'captain', ?)", `captain.${t.id}@bos.local`, `${t.name} captain`, t.id);
     n++;
   }
   back(res, '/admin?tab=people', 'msg', n ? `Added ${n} login${n === 1 ? '' : 's'}.` : 'Every school already has a captain login, and there is a desk login.');
@@ -568,6 +568,8 @@ app.use((err, req, res, _next) => {
 const seeded = seedIfEmpty();
 if (seeded) console.log('Loaded schools and players from seed/schools.json');
 ensureAdmin(process.env.ADMIN_EMAIL);
+// Placeholder logins use @bos.local; rename the ones first created under another ending.
+run("UPDATE users SET email = replace(email, '@bos.invalid', '@bos.local') WHERE email LIKE '%@bos.invalid' AND replace(email, '@bos.invalid', '@bos.local') NOT IN (SELECT email FROM users)");
 // The venue has six courts; move databases still holding the first four-court default.
 if (getSetting('courts') === 'Court 1, Court 2, Court 3, Court 4') setSetting('courts', 'Court 1, Court 2, Court 3, Court 4, Court 5, Court 6');
 
@@ -591,7 +593,7 @@ app.listen(PORT, () => {
     // Without an email service the first admin has no way in, so print a sign-in link to the server log.
     const adminUser = get('SELECT id FROM users WHERE email = ?', process.env.ADMIN_EMAIL.trim().toLowerCase());
     const base = process.env.PUBLIC_URL || (process.env.RAILWAY_PUBLIC_DOMAIN ? `https://${process.env.RAILWAY_PUBLIC_DOMAIN}` : '');
-    if (adminUser && base) console.log(`Admin sign-in link (valid 3 days): ${base.replace(/\/$/, '')}/auth/${createLoginToken(adminUser.id, ADMIN_LINK_MS)}`);
+    if (adminUser && base) console.log(`Admin sign-in link (valid 7 days): ${base.replace(/\/$/, '')}/auth/${createLoginToken(adminUser.id, ADMIN_LINK_MS)}`);
   }
   if (isProd && !mailConfigured()) console.log('Email is not configured (RESEND_API_KEY and MAIL_FROM). Sign-in links can only be created by an admin.');
 });

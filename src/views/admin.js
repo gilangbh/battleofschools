@@ -2,6 +2,7 @@ import { h, raw, layout, teamMark, showdownTitle, flash } from './ui.js';
 import { STAGE_LABEL } from '../rules.js';
 
 const TABS = [['setup', 'Draw and fixtures'], ['people', 'Logins'], ['players', 'Players'], ['settings', 'Settings']];
+const PENCIL = raw('<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>');
 const opt = (value, label, selected) => h`<option value="${value}"${selected ? raw(' selected') : ''}>${label}</option>`;
 
 function setupTab(state) {
@@ -69,7 +70,7 @@ function peopleTab(state, users, origin, links) {
   const who = (u) => (u.role === 'captain' ? `Captain, ${state.teamById.get(u.team_id)?.name || 'no school'}` : u.role === 'desk' ? 'Scoring desk' : 'Admin');
   return h`
 ${links ? h`<section class="links-box"><h2>Sign-in links</h2>
-  <p>Each link works once and expires in three days. Creating new links does not cancel these. Send each one only to the person it is for.</p>
+  <p>Each link works once and expires seven days after it was created. Creating new links does not cancel these. Send each one only to the person it is for.</p>
   <div class="table-scroll"><table class="tournament-table admin-table">
     <thead><tr><th scope="col">Who</th><th scope="col">Email</th><th scope="col">Link</th></tr></thead>
     <tbody>${links.map((l) => h`<tr><th scope="row">${who(l.user)}</th><td>${l.user.email}</td><td><input class="copy-field" type="text" readonly value="${l.url}" aria-label="Sign-in link for ${l.user.email}" onfocus="this.select()"></td></tr>`)}</tbody>
@@ -118,7 +119,9 @@ function playersTab(state, teamId) {
     <div class="table-scroll"><table class="tournament-table admin-table roster-table">
       <thead><tr><th scope="col">Player</th><th scope="col">Plays as</th><th scope="col">Level</th><th scope="col">Flags</th></tr></thead>
       <tbody>${[...everyone, { id: 'new', name: '', level: 'bronze', active: 1 }].map((p) => h`<tr class="${p.id !== 'new' && !p.active ? 'is-inactive' : ''}">
-        <td><input class="name-input" type="text" name="name_${p.id}" value="${p.name}" placeholder="${p.id === 'new' ? '+ Add a player' : ''}" aria-label="Name"></td>
+        <td>${p.id === 'new'
+          ? h`<input class="name-input" type="text" name="name_new" value="" placeholder="+ Add a player" aria-label="Name of a new player">`
+          : h`<div class="name-cell"><strong class="name-text">${p.name}</strong><button type="button" class="name-edit" data-rename aria-label="Rename ${p.name}" title="Rename">${PENCIL}</button><input class="name-input" type="text" name="name_${p.id}" value="${p.name}" aria-label="Name" hidden></div>`}</td>
         <td><div class="seg" role="radiogroup" aria-label="Plays as">
           <label><input type="radio" name="gender_${p.id}" value="M"${p.gender === 'M' ? raw(' checked') : ''}><span>Man</span></label>
           <label><input type="radio" name="gender_${p.id}" value="F"${p.gender === 'F' ? raw(' checked') : ''}><span>Woman</span></label>
@@ -173,7 +176,7 @@ export function adminPage(state, user, { tab, users, origin, query, links = null
   <nav class="tournament-nav" aria-label="Admin sections"><div class="wrap">${TABS.map(([k, label]) => h`<a href="/admin?tab=${k}"${k === current ? raw(' aria-current="page"') : ''}>${label}</a>`)}<a href="/tv">TV scoreboard ↗</a></div></nav>
   <div class="wrap tournament-body">
     ${flash(query)}
-    ${query.link ? h`<p class="flash flash-ok">Sign-in link (works once, valid three days): <input class="copy-field" type="text" readonly value="${query.link}" aria-label="Sign-in link" onfocus="this.select()"></p>` : ''}
+    ${query.link ? h`<p class="flash flash-ok">Sign-in link (works once, valid seven days): <input class="copy-field" type="text" readonly value="${query.link}" aria-label="Sign-in link" onfocus="this.select()"></p>` : ''}
     ${content}
   </div>
 </main>`;

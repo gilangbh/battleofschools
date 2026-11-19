@@ -128,3 +128,16 @@ document.querySelectorAll('.dm').forEach((card) => {
     af('note').textContent = n ? 'Table filled. Adjust anything by hand, then press Save all.' : 'The table already had these times and courts.';
   });
 })();
+
+// Admin players: the pencil swaps a name for its text box.
+document.addEventListener('click', (e) => {
+  const btn = e.target.closest('[data-rename]');
+  if (!btn) return;
+  const cell = btn.closest('.name-cell');
+  const input = cell.querySelector('.name-input');
+  cell.querySelector('.name-text').hidden = true;
+  btn.hidden = true;
+  input.hidden = false;
+  input.focus();
+  input.select();
+});
