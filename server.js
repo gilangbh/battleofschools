@@ -463,6 +463,26 @@ app.post('/admin/users', admin, (req, res) => {
   back(res, '/admin?tab=people', 'msg', `Login added for ${email}.`);
 });
 
+// Desk and captain logins that do not exist yet. The addresses are placeholders that cannot receive mail;
+// replace each with the real person's email once the organizer provides it.
+app.post('/admin/users/seed', admin, (req, res) => {
+  let n = 0;
+  if (!get("SELECT 1 AS x FROM users WHERE role = 'desk'")) { run("INSERT INTO users (email, name, role) VALUES ('desk@bos.invalid', 'Scoring desk', 'desk')"); n++; }
+  for (const t of all('SELECT id, name FROM teams ORDER BY sort')) {
+    if (get("SELECT 1 AS x FROM users WHERE role = 'captain' AND team_id = ?", t.id)) continue;
+    run("INSERT INTO users (email, name, role, team_id) VALUES (?, ?, 'captain', ?)", `captain.${t.id}@bos.invalid`, `${t.name} captain`, t.id);
+    n++;
+  }
+  back(res, '/admin?tab=people', 'msg', n ? `Added ${n} login${n === 1 ? '' : 's'}.` : 'Every school already has a captain login, and there is a desk login.');
+});
+
+app.post('/admin/users/links', admin, (req, res) => {
+  const users = all('SELECT * FROM users ORDER BY role, team_id, email');
+  const links = users.map((u) => ({ user: u, url: `${origin(req)}/auth/${createLoginToken(u.id, ADMIN_LINK_MS)}` }));
+  noStore(res);
+  res.send(adminPage(loadState(), req.user, { tab: 'people', users, origin: origin(req), query: {}, links }));
+});
+
 app.post('/admin/users/:id/link', admin, (req, res) => {
   const u = get('SELECT * FROM users WHERE id = ?', Number(req.params.id));
   if (!u) return res.status(404).send('Not found.');
@@ -499,7 +519,7 @@ app.post('/admin/players/:team', admin, (req, res) => {
     const n = read('new');
     if (n.name) run('INSERT INTO players (team_id, name, level, level_pending, gender, is_captain, is_gold, active) VALUES (?, ?, ?, ?, ?, ?, ?, 1)', team.id, n.name, n.level, n.pending, n.gender, n.captain, n.gold);
   });
-  back(res, '/admin?tab=players', 'msg', `${team.name} saved.`);
+  back(res, `/admin?tab=players&team=${team.id}`, 'msg', `${team.name} saved.`);
 });
 
 app.post('/admin/settings', admin, (req, res) => {

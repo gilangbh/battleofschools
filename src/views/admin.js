@@ -65,15 +65,27 @@ function setupTab(state) {
 </section>`;
 }
 
-function peopleTab(state, users, origin) {
+function peopleTab(state, users, origin, links) {
+  const who = (u) => (u.role === 'captain' ? `Captain, ${state.teamById.get(u.team_id)?.name || 'no school'}` : u.role === 'desk' ? 'Scoring desk' : 'Admin');
   return h`
-<section><h2>Logins</h2>
-  <p>Captains manage their own school’s lineups. Desk staff enter scores. Everyone signs in with an emailed link; “Create link” gives you a link to send yourself (for example by WhatsApp) that works once within three days.</p>
+${links ? h`<section class="links-box"><h2>Sign-in links</h2>
+  <p>Each link works once and expires in three days. Creating new links does not cancel these. Send each one only to the person it is for.</p>
   <div class="table-scroll"><table class="tournament-table admin-table">
-    <thead><tr><th scope="col">Email</th><th scope="col">Name</th><th scope="col">Role</th><th scope="col">School</th><th scope="col"></th></tr></thead>
-    <tbody>${users.map((u) => h`<tr><th scope="row">${u.email}</th><td>${u.name || ''}</td><td>${u.role}</td><td>${u.team_id ? state.teamById.get(u.team_id)?.name : '–'}</td>
-      <td class="row-actions"><form method="post" action="/admin/users/${u.id}/link"><button class="button small ghost" type="submit">Create link</button></form>
-      <form method="post" action="/admin/users/${u.id}/delete" data-confirm="Remove ${u.email}?"><button class="link-button" type="submit">Remove</button></form></td></tr>`)}</tbody>
+    <thead><tr><th scope="col">Who</th><th scope="col">Email</th><th scope="col">Link</th></tr></thead>
+    <tbody>${links.map((l) => h`<tr><th scope="row">${who(l.user)}</th><td>${l.user.email}</td><td><input class="copy-field" type="text" readonly value="${l.url}" aria-label="Sign-in link for ${l.user.email}" onfocus="this.select()"></td></tr>`)}</tbody>
+  </table></div>
+</section>` : ''}
+<section><h2>Logins</h2>
+  <p class="footnote">Captains manage their own school’s lineups. Desk staff enter scores. “Link” creates a sign-in link you can send yourself, for example by WhatsApp.</p>
+  <div class="form-actions">
+    <form method="post" action="/admin/users/links"><button class="button small" type="submit">Create links for everyone</button></form>
+    <form method="post" action="/admin/users/seed"><button class="button small ghost" type="submit">Add missing desk and captain logins</button></form>
+  </div>
+  <div class="table-scroll"><table class="tournament-table admin-table">
+    <thead><tr><th scope="col">Email</th><th scope="col">Name</th><th scope="col">Role</th><th scope="col"></th></tr></thead>
+    <tbody>${users.map((u) => h`<tr><th scope="row">${u.email}</th><td>${u.name || ''}</td><td>${who(u)}</td>
+      <td class="row-actions"><form method="post" action="/admin/users/${u.id}/link"><button class="pill" type="submit">Link</button></form>
+      <form method="post" action="/admin/users/${u.id}/delete" data-confirm="Remove ${u.email}?"><button class="fx-del" type="submit" aria-label="Remove ${u.email}" title="Remove">×</button></form></td></tr>`)}</tbody>
   </table></div>
   <h3>Add a login</h3>
   <form method="post" action="/admin/users" class="grid-form">
@@ -87,29 +99,41 @@ function peopleTab(state, users, origin) {
 </section>`;
 }
 
-function playersTab(state) {
+function playersTab(state, teamId) {
+  const team = state.teamById.get(teamId) || state.teams[0];
+  const of = (t) => state.allPlayers.filter((p) => p.team_id === t.id);
+  const everyone = of(team);
+  const tick = (name, on, label) => h`<label class="tick"><input type="checkbox" name="${name}"${on ? raw(' checked') : ''}><span>${label}</span></label>`;
   return h`
 <section><h2>Players</h2>
-  <p>Names and levels were imported from the school pages on battleofschools.id. Gender is not published there, so set it here (or let each captain set it). Add each school’s approved Gold Player with the “Gold Player” box ticked.</p>
-  ${state.teams.map((t) => {
-    const everyone = state.allPlayers.filter((p) => p.team_id === t.id);
-    return h`<details class="tournament-round"><summary>${t.name} <span class="round-count">${everyone.filter((p) => p.active && !p.is_gold).length} regular players${everyone.some((p) => p.active && p.is_gold) ? ' + Gold Player' : ''}</span></summary>
-    <form method="post" action="/admin/players/${t.id}">
-      <div class="table-scroll"><table class="tournament-table admin-table">
-        <thead><tr><th scope="col">Name</th><th scope="col">Level</th><th scope="col">Under review</th><th scope="col">Gender</th><th scope="col">Captain</th><th scope="col">Gold Player</th><th scope="col">Active</th></tr></thead>
-        <tbody>${[...everyone, { id: 'new', name: '', level: 'bronze', active: 1 }].map((p) => h`<tr>
-          <td><input type="text" name="name_${p.id}" value="${p.name}" placeholder="${p.id === 'new' ? 'Add a player' : ''}" aria-label="Name"></td>
-          <td><select name="level_${p.id}" aria-label="Level">${opt('silver', 'Silver', p.level === 'silver')}${opt('bronze', 'Bronze', p.level === 'bronze')}${opt('lower_bronze', 'Lower Bronze', p.level === 'lower_bronze')}</select></td>
-          <td><input type="checkbox" name="pending_${p.id}"${p.level_pending ? raw(' checked') : ''} aria-label="Level under review"></td>
-          <td><select name="gender_${p.id}" aria-label="Gender">${opt('', 'Not set', !p.gender)}${opt('M', 'Man', p.gender === 'M')}${opt('F', 'Woman', p.gender === 'F')}</select></td>
-          <td><input type="checkbox" name="captain_${p.id}"${p.is_captain ? raw(' checked') : ''} aria-label="Captain"></td>
-          <td><input type="checkbox" name="gold_${p.id}"${p.is_gold ? raw(' checked') : ''} aria-label="Gold Player"></td>
-          <td><input type="checkbox" name="active_${p.id}"${p.active ? raw(' checked') : ''} aria-label="Active"></td>
-        </tr>`)}</tbody>
-      </table></div>
-      <p class="form-actions"><button class="button small" type="submit">Save ${t.name}</button></p>
-    </form></details>`;
-  })}
+  <ul class="school-picker" role="list">${state.teams.map((t) => {
+    const ps = of(t).filter((p) => p.active);
+    const missing = ps.filter((p) => !p.gender).length;
+    return h`<li><a href="/admin?tab=players&team=${t.id}"${t.id === team.id ? raw(' aria-current="true"') : ''}>${teamMark(t)}<strong>${t.name}</strong>
+      <small class="${missing ? 'is-missing' : ''}">${missing ? `${missing} without gender` : `${ps.length} players, all set`}</small></a></li>`;
+  })}</ul>
+
+  <form method="post" action="/admin/players/${team.id}" data-dirty-form>
+    <div class="roster-head">${teamMark(team)}<div><h3>${team.name}</h3><p>${team.school}</p></div></div>
+    <div class="table-scroll"><table class="tournament-table admin-table roster-table">
+      <thead><tr><th scope="col">Player</th><th scope="col">Plays as</th><th scope="col">Level</th><th scope="col">Flags</th></tr></thead>
+      <tbody>${[...everyone, { id: 'new', name: '', level: 'bronze', active: 1 }].map((p) => h`<tr class="${p.id !== 'new' && !p.active ? 'is-inactive' : ''}">
+        <td><input class="name-input" type="text" name="name_${p.id}" value="${p.name}" placeholder="${p.id === 'new' ? '+ Add a player' : ''}" aria-label="Name"></td>
+        <td><div class="seg" role="radiogroup" aria-label="Plays as">
+          <label><input type="radio" name="gender_${p.id}" value="M"${p.gender === 'M' ? raw(' checked') : ''}><span>Man</span></label>
+          <label><input type="radio" name="gender_${p.id}" value="F"${p.gender === 'F' ? raw(' checked') : ''}><span>Woman</span></label>
+        </div></td>
+        <td><div class="seg" role="radiogroup" aria-label="Level">
+          <label><input type="radio" name="level_${p.id}" value="silver"${p.level === 'silver' ? raw(' checked') : ''}><span>Silver</span></label>
+          <label><input type="radio" name="level_${p.id}" value="bronze"${p.level === 'bronze' ? raw(' checked') : ''}><span>Bronze</span></label>
+          <label><input type="radio" name="level_${p.id}" value="lower_bronze"${p.level === 'lower_bronze' ? raw(' checked') : ''}><span>Lower Bronze</span></label>
+        </div></td>
+        <td><div class="ticks">${tick(`captain_${p.id}`, p.is_captain, 'Captain')}${tick(`gold_${p.id}`, p.is_gold, 'Gold Player ★')}${tick(`pending_${p.id}`, p.level_pending, 'Level under review')}${tick(`active_${p.id}`, p.active, 'Active')}</div></td>
+      </tr>`)}</tbody>
+    </table></div>
+    <div class="save-bar"><button class="button" type="submit">Save ${team.name}</button><span class="save-note" data-dirty-note>No unsaved changes.</span></div>
+  </form>
+  <p class="footnote">Names and levels were imported from the school pages on battleofschools.id, which do not publish gender. A school’s Gold Player is added as an extra player with “Gold Player ★” on. Turn “Active” off for a player who has withdrawn.</p>
 </section>`;
 }
 
@@ -140,9 +164,9 @@ function settingsTab(state) {
 </section>`;
 }
 
-export function adminPage(state, user, { tab, users, origin, query }) {
+export function adminPage(state, user, { tab, users, origin, query, links = null }) {
   const current = TABS.some(([k]) => k === tab) ? tab : 'setup';
-  const content = current === 'setup' ? setupTab(state) : current === 'people' ? peopleTab(state, users, origin) : current === 'players' ? playersTab(state) : settingsTab(state);
+  const content = current === 'setup' ? setupTab(state) : current === 'people' ? peopleTab(state, users, origin, links) : current === 'players' ? playersTab(state, query.team) : settingsTab(state);
   const body = h`
 <main id="main" class="page">
   <div class="tournament-hero"><div class="wrap"><p class="eyebrow">Tournament staff</p><h1 class="page-title">Admin</h1></div></div>

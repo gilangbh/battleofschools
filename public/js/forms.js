@@ -88,13 +88,14 @@ document.querySelectorAll('.dm').forEach((card) => {
   const bar = form.querySelector('.save-bar');
   const note = form.querySelector('[data-dirty-note]');
   const fields = [...form.querySelectorAll('[name]')];
-  const initial = new Map(fields.map((f) => [f, f.value]));
+  const read = (f) => (f.type === 'checkbox' || f.type === 'radio' ? String(f.checked) : f.value);
+  const initial = new Map(fields.map((f) => [f, read(f)]));
   let saving = false;
   const review = () => {
     let n = 0;
-    fields.forEach((f) => { const changed = f.value !== initial.get(f); f.classList.toggle('is-touched', changed); if (changed) n++; });
+    fields.forEach((f) => { const changed = read(f) !== initial.get(f); (f.closest('.seg label, .tick') || f).classList.toggle('is-touched', changed); if (changed && !(f.type === 'radio' && !f.checked)) n++; });
     bar.classList.toggle('is-dirty', n > 0);
-    note.textContent = n ? n + ' unsaved change' + (n === 1 ? '' : 's') + '. Press Save all.' : 'No unsaved changes.';
+    note.textContent = n ? n + ' unsaved change' + (n === 1 ? '' : 's') + '. Press Save.' : 'No unsaved changes.';
     return n;
   };
   form.addEventListener('input', review);
@@ -110,7 +111,7 @@ document.querySelectorAll('.dm').forEach((card) => {
   }));
 
   const box = document.querySelector('[data-autofill]');
-  if (!box) return;
+  if (!box || !bar) return;
   const af = (k) => box.querySelector('[data-af=' + k + ']');
   af('go').addEventListener('click', () => {
     const [hh, mm] = (af('start').value || '09:00').split(':').map(Number);
