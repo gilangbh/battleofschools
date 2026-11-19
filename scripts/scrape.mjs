@@ -1,6 +1,7 @@
 // Re-import schools, players and crests from the public school pages on battleofschools.id.
 // Usage: npm run scrape
-// Writes seed/schools.json and public/assets/crests/<school>.svg. It does not touch the database:
+// Writes seed/schools.json, public/assets/crests/<school>.svg and public/assets/players/<file>.jpg.
+// Portraits are shrunk to 480 x 600 when the optional `sharp` package is installed (npm i --no-save sharp). It does not touch the database:
 // the seed is only loaded when the database has no schools (delete data/bos.db to re-seed).
 import fs from 'node:fs';
 import path from 'node:path';
@@ -14,6 +15,10 @@ const fetchText = async (url) => {
   return res.text();
 };
 
+let sharp = null;
+try { sharp = (await import('sharp')).default; } catch { console.log('sharp is not installed: portraits are saved at full size'); }
+fs.mkdirSync(path.join('public', 'assets', 'players'), { recursive: true });
+
 const out = [];
 for (const slug of SLUGS) {
   const html = await fetchText(`${BASE}/schools/${slug}/`);
@@ -26,7 +31,18 @@ for (const slug of SLUGS) {
     const name = strip(block.match(/<h3>([\s\S]*?)<\/h3>/)[1]);
     const meta = (block.match(/school-player-meta">([\s\S]*?)<\/p>/) || [, ''])[1];
     const spans = [...meta.matchAll(/<span[^>]*>([\s\S]*?)<\/span>/g)].map((m) => strip(m[1])).filter(Boolean);
-    players.push({ name, captain: spans.includes('Captain'), level: spans.filter((s) => s !== 'Captain').join(' | ') });
+    let photo = null;
+    const src = (block.match(/<img src="([^"]+.jpe?g)"/) || [])[1];
+    if (src) {
+      const res = await fetch(BASE + src, { headers: { 'User-Agent': 'Mozilla/5.0 (bos-scores import)' } });
+      if (res.ok) {
+        let buf = Buffer.from(await res.arrayBuffer());
+        if (sharp) buf = await sharp(buf).resize(480, 600, { fit: 'cover', position: 'top' }).jpeg({ quality: 78 }).toBuffer();
+        photo = path.basename(src).replace(/-d{8}(?=.jpe?g$)/, '');
+        fs.writeFileSync(path.join('public', 'assets', 'players', photo), buf);
+      }
+    }
+    players.push({ name, captain: spans.includes('Captain'), level: spans.filter((s) => s !== 'Captain').join(' | '), photo });
   }
   out.push({ slug, team, school, honor: honor ? strip(honor) : null, players });
   const crest = await fetchText(`${BASE}/api/reveal-logo/${slug}/`);

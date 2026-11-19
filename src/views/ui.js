@@ -69,7 +69,7 @@ export function scoreText(m) {
 // ---------- Page shell ----------
 // Changes on every start, so a new deploy is never served with a browser-cached script or stylesheet.
 const ASSET_VERSION = Date.now().toString(36);
-export function layout({ title, body, user = null, bodyClass = '', scripts = [], bare = false, active = '' }) {
+export function layout({ title, body, user = null, bodyClass = '', scripts = [], styles = [], bare = false, active = '' }) {
   const nav = [
     ['/', 'Live scores', 'scores'],
     user && (user.role === 'captain' || user.role === 'admin') ? ['/captain', 'Lineups', 'captain'] : null,
@@ -105,6 +105,7 @@ export function layout({ title, body, user = null, bodyClass = '', scripts = [],
 <link rel="preload" href="/assets/poppins-black.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="stylesheet" href="/css/tournament.css?v=${ASSET_VERSION}">
 <link rel="stylesheet" href="/css/app.css?v=${ASSET_VERSION}">
+${styles.map((s) => h`<link rel="stylesheet" href="${s}?v=${ASSET_VERSION}">`)}
 ${scripts.map((s) => h`<script src="${s}?v=${ASSET_VERSION}" defer></script>`)}
 </head>
 <body class="${bodyClass}">

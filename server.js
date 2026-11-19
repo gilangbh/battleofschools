@@ -4,7 +4,7 @@ import path from 'node:path';
 import QRCode from 'qrcode';
 import { all, get, run, tx, getSetting, setSetting } from './src/db.js';
 import {
-  seedIfEmpty, ensureAdmin, loadState, generateFixtures, fillKnockout, resetResults, createShowdown,
+  seedIfEmpty, backfillPhotos, ensureAdmin, loadState, generateFixtures, fillKnockout, resetResults, createShowdown,
 } from './src/model.js';
 import { loadDemo } from './src/demo.js';
 import {
@@ -567,6 +567,7 @@ app.use((err, req, res, _next) => {
 // ---------- Start ----------
 const seeded = seedIfEmpty();
 if (seeded) console.log('Loaded schools and players from seed/schools.json');
+backfillPhotos();
 ensureAdmin(process.env.ADMIN_EMAIL);
 // Placeholder logins use @bos.local; rename the ones first created under another ending.
 run("UPDATE users SET email = replace(email, '@bos.invalid', '@bos.local') WHERE email LIKE '%@bos.invalid' AND replace(email, '@bos.invalid', '@bos.local') NOT IN (SELECT email FROM users)");

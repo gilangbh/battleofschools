@@ -3,56 +3,55 @@
   "slug": "acs",
   "team": "ACS Tigers",
   "school": "Anglo Chinese School",
-  "logo": "/api/reveal-logo/acs/",
   "honor": "RETURNING CHAMPION",
   "players": [
    {
     "name": "Ken",
     "captain": true,
     "level": "Silver",
-    "photo": "/assets/teams-20261111/media/players-jersey/acs-ken.jpg"
+    "photo": "acs-ken.jpg"
    },
    {
     "name": "Jane",
     "captain": false,
     "level": "Lower Bronze",
-    "photo": "/assets/teams-20261111/media/players-jersey/acs-jane.jpg"
+    "photo": "acs-jane.jpg"
    },
    {
     "name": "Joyce",
     "captain": false,
     "level": "Lower Bronze",
-    "photo": "/assets/teams-20261111/media/players-jersey/acs-joyce.jpg"
+    "photo": "acs-joyce.jpg"
    },
    {
     "name": "Budi",
     "captain": false,
     "level": "Bronze",
-    "photo": "/assets/teams-20261111/media/players-jersey/acs-budi.jpg"
+    "photo": "acs-budi.jpg"
    },
    {
     "name": "Marlene",
     "captain": false,
     "level": "Bronze",
-    "photo": "/assets/teams-20261111/media/players-jersey/acs-marlene.jpg"
+    "photo": "acs-marlene.jpg"
    },
    {
     "name": "Henry",
     "captain": false,
     "level": "Bronze (submitted)",
-    "photo": "/assets/teams-20261111/media/players-jersey/acs-henry-20261116.jpg"
+    "photo": "acs-henry-20261116.jpg"
    },
    {
     "name": "Jason",
     "captain": false,
     "level": "Bronze (submitted)",
-    "photo": "/assets/teams-20261111/media/players-jersey/acs-jason-20261116.jpg"
+    "photo": "acs-jason-20261116.jpg"
    },
    {
     "name": "Ferron",
     "captain": false,
     "level": "Bronze (submitted)",
-    "photo": "/assets/teams-20261111/media/players-jersey/acs-ferron-20261116.jpg"
+    "photo": "acs-ferron-20261116.jpg"
    }
   ]
  },
@@ -60,56 +59,55 @@
   "slug": "jis",
   "team": "JIS Dragons",
   "school": "Jakarta Intercultural School",
-  "logo": "/api/reveal-logo/jis/?v=jis-20261030",
   "honor": "RETURNING RUNNER-UP",
   "players": [
    {
     "name": "Kristin",
     "captain": true,
     "level": "Silver",
-    "photo": "/assets/teams-20261111/media/players-jersey/jis-01.jpg"
+    "photo": "jis-01.jpg"
    },
    {
     "name": "Victor",
     "captain": false,
     "level": "Bronze",
-    "photo": "/assets/teams-20261111/media/players-jersey/jis-02.jpg"
+    "photo": "jis-02.jpg"
    },
    {
     "name": "Nick",
     "captain": false,
     "level": "Bronze",
-    "photo": "/assets/teams-20261111/media/players-jersey/jis-03.jpg"
+    "photo": "jis-03.jpg"
    },
    {
     "name": "Johan",
     "captain": false,
     "level": "Bronze",
-    "photo": "/assets/teams-20261111/media/players-jersey/jis-04.jpg"
+    "photo": "jis-04.jpg"
    },
    {
     "name": "Yelly",
     "captain": false,
     "level": "Bronze",
-    "photo": "/assets/teams-20261111/media/players-jersey/jis-05.jpg"
+    "photo": "jis-05.jpg"
    },
    {
     "name": "Alaric",
     "captain": false,
     "level": "Silver",
-    "photo": "/assets/teams-20261111/media/players-jersey/jis-06.jpg"
+    "photo": "jis-06.jpg"
    },
    {
     "name": "Natalie",
     "captain": false,
     "level": "Bronze",
-    "photo": "/assets/teams-20261111/media/players-jersey/jis-07.jpg"
+    "photo": "jis-07.jpg"
    },
    {
     "name": "Eric",
     "captain": false,
     "level": "Bronze",
-    "photo": "/assets/teams-20261111/media/players-jersey/jis-08.jpg"
+    "photo": "jis-08.jpg"
    }
   ]
  },
@@ -117,56 +115,55 @@
   "slug": "bsj",
   "team": "BSJ Padel Bulldogs",
   "school": "British School Jakarta",
-  "logo": "/api/reveal-logo/bsj/",
   "honor": null,
   "players": [
    {
     "name": "Orange",
     "captain": true,
     "level": "Bronze",
-    "photo": "/assets/teams-20261111/media/players-jersey/bsj-01.jpg"
+    "photo": "bsj-01.jpg"
    },
    {
     "name": "Aria",
     "captain": false,
     "level": "Bronze",
-    "photo": "/assets/teams-20261111/media/players-jersey/bsj-02.jpg"
+    "photo": "bsj-02.jpg"
    },
    {
     "name": "Ryusuke",
     "captain": false,
     "level": "Bronze",
-    "photo": "/assets/teams-20261111/media/players-jersey/bsj-03.jpg"
+    "photo": "bsj-03.jpg"
    },
    {
     "name": "Naraya",
     "captain": false,
     "level": "Bronze (submitted)",
-    "photo": "/assets/teams-20261111/media/players-jersey/bsj-04.jpg"
+    "photo": "bsj-04.jpg"
    },
    {
     "name": "Senta",
     "captain": false,
     "level": "Bronze",
-    "photo": "/assets/teams-20261111/media/players-jersey/bsj-05.jpg"
+    "photo": "bsj-05.jpg"
    },
    {
     "name": "Zakie",
     "captain": false,
     "level": "Bronze",
-    "photo": "/assets/teams-20261111/media/players-jersey/bsj-06.jpg"
+    "photo": "bsj-06.jpg"
    },
    {
     "name": "Evi",
     "captain": false,
     "level": "Bronze",
-    "photo": "/assets/teams-20261111/media/players-jersey/bsj-07.jpg"
+    "photo": "bsj-07.jpg"
    },
    {
     "name": "Ardi",
     "captain": false,
     "level": "Bronze",
-    "photo": "/assets/teams-20261111/media/players-jersey/bsj-08.jpg"
+    "photo": "bsj-08.jpg"
    }
   ]
  },
@@ -174,56 +171,55 @@
   "slug": "fsj",
   "team": "Smashs Croissants",
   "school": "French School Jakarta",
-  "logo": "/api/reveal-logo/fsj/",
   "honor": null,
   "players": [
    {
     "name": "Justine",
     "captain": true,
     "level": "Bronze",
-    "photo": "/assets/teams-20261111/media/players-jersey/fsj-01.jpg"
+    "photo": "fsj-01.jpg"
    },
    {
     "name": "Nicolas",
     "captain": false,
     "level": "Lower Bronze",
-    "photo": "/assets/teams-20261111/media/players-jersey/fsj-02.jpg"
+    "photo": "fsj-02.jpg"
    },
    {
     "name": "Benoit",
     "captain": false,
     "level": "Bronze",
-    "photo": "/assets/teams-20261111/media/players-jersey/fsj-03.jpg"
+    "photo": "fsj-03.jpg"
    },
    {
     "name": "Jean",
     "captain": false,
     "level": "Silver",
-    "photo": "/assets/teams-20261111/media/players-jersey/fsj-04.jpg"
+    "photo": "fsj-04.jpg"
    },
    {
     "name": "Greg",
     "captain": false,
     "level": "Bronze",
-    "photo": "/assets/teams-20261111/media/players-jersey/fsj-05.jpg"
+    "photo": "fsj-05.jpg"
    },
    {
     "name": "Ary",
     "captain": false,
     "level": "Bronze",
-    "photo": "/assets/teams-20261111/media/players-jersey/fsj-06.jpg"
+    "photo": "fsj-06.jpg"
    },
    {
     "name": "Rose",
     "captain": false,
     "level": "Bronze",
-    "photo": "/assets/teams-20261111/media/players-jersey/fsj-07.jpg"
+    "photo": "fsj-07.jpg"
    },
    {
     "name": "Marine",
     "captain": false,
     "level": "Silver",
-    "photo": "/assets/teams-20261111/media/players-jersey/fsj-08.jpg"
+    "photo": "fsj-08.jpg"
    }
   ]
  },
@@ -231,56 +227,55 @@
   "slug": "lentera",
   "team": "Lentera Eagles",
   "school": "Sekolah Lentera Indonesia",
-  "logo": "/api/reveal-logo/lentera/",
   "honor": "Fourth place",
   "players": [
    {
     "name": "Anabel",
     "captain": true,
     "level": "Lower Bronze",
-    "photo": "/assets/teams-20261111/media/players-jersey/lentera-01.jpg"
+    "photo": "lentera-01.jpg"
    },
    {
     "name": "Greg",
     "captain": false,
     "level": "Bronze",
-    "photo": "/assets/teams-20261111/media/players-jersey/lentera-02.jpg"
+    "photo": "lentera-02.jpg"
    },
    {
     "name": "Sapphirlia",
     "captain": false,
     "level": "Lower Bronze",
-    "photo": "/assets/teams-20261111/media/players-jersey/lentera-03.jpg"
+    "photo": "lentera-03.jpg"
    },
    {
     "name": "Ananda",
     "captain": false,
     "level": "Bronze",
-    "photo": "/assets/teams-20261111/media/players-jersey/lentera-04.jpg"
+    "photo": "lentera-04.jpg"
    },
    {
     "name": "Audrey",
     "captain": false,
     "level": "Lower Bronze",
-    "photo": "/assets/teams-20261111/media/players-jersey/lentera-05.jpg"
+    "photo": "lentera-05.jpg"
    },
    {
     "name": "Edward",
     "captain": false,
     "level": "Silver",
-    "photo": "/assets/teams-20261111/media/players-jersey/lentera-06.jpg"
+    "photo": "lentera-06.jpg"
    },
    {
     "name": "Geraldi",
     "captain": false,
     "level": "Bronze",
-    "photo": "/assets/teams-20261111/media/players-jersey/lentera-07.jpg"
+    "photo": "lentera-07.jpg"
    },
    {
     "name": "Raja",
     "captain": false,
     "level": "Silver",
-    "photo": "/assets/teams-20261111/media/players-jersey/lentera-08.jpg"
+    "photo": "lentera-08.jpg"
    }
   ]
  },
@@ -288,56 +283,55 @@
   "slug": "mentari",
   "team": "MISJ",
   "school": "Mentari Intercultural School Jakarta",
-  "logo": "/api/reveal-logo/mentari/",
   "honor": "Third place",
   "players": [
    {
     "name": "Yasmine",
     "captain": true,
     "level": "Bronze",
-    "photo": "/assets/teams-20261111/media/players-jersey/mentari-01.jpg"
+    "photo": "mentari-01.jpg"
    },
    {
     "name": "Erik",
     "captain": false,
     "level": "Silver",
-    "photo": "/assets/teams-20261111/media/players-jersey/mentari-02.jpg"
+    "photo": "mentari-02.jpg"
    },
    {
     "name": "Daniel",
     "captain": false,
     "level": "Silver",
-    "photo": "/assets/teams-20261111/media/players-jersey/mentari-03.jpg"
+    "photo": "mentari-03.jpg"
    },
    {
     "name": "Christie",
     "captain": false,
     "level": "Bronze",
-    "photo": "/assets/teams-20261111/media/players-jersey/mentari-04.jpg"
+    "photo": "mentari-04.jpg"
    },
    {
     "name": "Reza",
     "captain": false,
     "level": "Bronze",
-    "photo": "/assets/teams-20261111/media/players-jersey/mentari-05.jpg"
+    "photo": "mentari-05.jpg"
    },
    {
     "name": "Gaby",
     "captain": false,
     "level": "Bronze (submitted)",
-    "photo": "/assets/teams-20261111/media/players-jersey/mentari-gaby-20261113.jpg"
+    "photo": "mentari-gaby-20261113.jpg"
    },
    {
     "name": "Joshua",
     "captain": false,
     "level": "Bronze",
-    "photo": "/assets/teams-20261111/media/players-jersey/mentari-07.jpg"
+    "photo": "mentari-07.jpg"
    },
    {
     "name": "Wahyu",
     "captain": false,
     "level": "Bronze (submitted)",
-    "photo": "/assets/teams-20261111/media/players-jersey/mentari-08.jpg"
+    "photo": "mentari-08.jpg"
    }
   ]
  },
@@ -345,56 +339,55 @@
   "slug": "nas",
   "team": "NAS Bears",
   "school": "Nord Anglia School",
-  "logo": "/api/reveal-logo/nas/",
   "honor": null,
   "players": [
    {
     "name": "Adrian",
     "captain": true,
     "level": "Bronze",
-    "photo": "/assets/teams-20261111/media/players-jersey/nas-adrian.jpg"
+    "photo": "nas-adrian.jpg"
    },
    {
     "name": "Francesca",
     "captain": false,
     "level": "Bronze (submitted)",
-    "photo": "/assets/teams-20261111/media/players-jersey/nas-francesca.jpg"
+    "photo": "nas-francesca.jpg"
    },
    {
     "name": "Jetse",
     "captain": false,
     "level": "Bronze",
-    "photo": "/assets/teams-20261111/media/players-jersey/nas-jetse.jpg"
+    "photo": "nas-jetse.jpg"
    },
    {
     "name": "Joandri",
     "captain": false,
     "level": "Lower Bronze",
-    "photo": "/assets/teams-20261111/media/players-jersey/nas-joandri.jpg"
+    "photo": "nas-joandri.jpg"
    },
    {
     "name": "Luciana",
     "captain": false,
     "level": "Bronze",
-    "photo": "/assets/teams-20261111/media/players-jersey/nas-luciana.jpg"
+    "photo": "nas-luciana.jpg"
    },
    {
     "name": "Prannoy",
     "captain": false,
     "level": "Bronze (submitted)",
-    "photo": "/assets/teams-20261111/media/players-jersey/nas-prannoy.jpg"
+    "photo": "nas-prannoy.jpg"
    },
    {
     "name": "Renee",
     "captain": false,
     "level": "Lower Bronze",
-    "photo": "/assets/teams-20261111/media/players-jersey/nas-renee.jpg"
+    "photo": "nas-renee.jpg"
    },
    {
     "name": "Sander",
     "captain": false,
     "level": "Bronze (submitted)",
-    "photo": "/assets/teams-20261111/media/players-jersey/nas-sander.jpg"
+    "photo": "nas-sander.jpg"
    }
   ]
  },
@@ -402,56 +395,55 @@
   "slug": "nzsj",
   "team": "NZSJ Kārearea",
   "school": "New Zealand School Jakarta",
-  "logo": "/api/reveal-logo/nzsj/",
   "honor": null,
   "players": [
    {
     "name": "Fendi",
     "captain": true,
     "level": "Bronze",
-    "photo": "/assets/teams-20261111/media/players-jersey/nzsj-01.jpg"
+    "photo": "nzsj-01.jpg"
    },
    {
     "name": "Joanina",
     "captain": false,
     "level": "Lower Bronze",
-    "photo": "/assets/teams-20261111/media/players-jersey/nzsj-02-387cf8ae.jpg"
+    "photo": "nzsj-02-387cf8ae.jpg"
    },
    {
     "name": "Akemi",
     "captain": false,
     "level": "Lower Bronze",
-    "photo": "/assets/teams-20261111/media/players-jersey/nzsj-03.jpg"
+    "photo": "nzsj-03.jpg"
    },
    {
     "name": "Masumi",
     "captain": false,
     "level": "Lower Bronze",
-    "photo": "/assets/teams-20261111/media/players-jersey/nzsj-04.jpg"
+    "photo": "nzsj-04.jpg"
    },
    {
     "name": "Nick",
     "captain": false,
     "level": "Silver",
-    "photo": "/assets/teams-20261111/media/players-jersey/nzsj-05.jpg"
+    "photo": "nzsj-05.jpg"
    },
    {
     "name": "John",
     "captain": false,
     "level": "Lower Bronze",
-    "photo": "/assets/teams-20261111/media/players-jersey/nzsj-06.jpg"
+    "photo": "nzsj-06.jpg"
    },
    {
     "name": "Justin",
     "captain": false,
     "level": "Bronze",
-    "photo": "/assets/teams-20261111/media/players-jersey/nzsj-07.jpg"
+    "photo": "nzsj-07.jpg"
    },
    {
     "name": "Cas",
     "captain": false,
     "level": "Silver",
-    "photo": "/assets/teams-20261111/media/players-jersey/nzsj-08.jpg"
+    "photo": "nzsj-08.jpg"
    }
   ]
  },
@@ -459,56 +451,55 @@
   "slug": "springfield",
   "team": "SF Rangers Padel Team",
   "school": "Springfield School",
-  "logo": "/api/reveal-logo/springfield/",
   "honor": null,
   "players": [
    {
     "name": "Jennifer",
     "captain": true,
     "level": "Lower Bronze (submitted)",
-    "photo": "/assets/teams-20261111/media/players-jersey/springfield-01.jpg"
+    "photo": "springfield-01.jpg"
    },
    {
     "name": "Cherly",
     "captain": false,
     "level": "Lower Bronze",
-    "photo": "/assets/teams-20261111/media/players-jersey/springfield-02.jpg"
+    "photo": "springfield-02.jpg"
    },
    {
     "name": "Andy",
     "captain": false,
     "level": "Silver",
-    "photo": "/assets/teams-20261111/media/players-jersey/springfield-03.jpg"
+    "photo": "springfield-03.jpg"
    },
    {
     "name": "Christian",
     "captain": false,
     "level": "Lower Bronze",
-    "photo": "/assets/teams-20261111/media/players-jersey/springfield-04.jpg"
+    "photo": "springfield-04.jpg"
    },
    {
     "name": "Alvin",
     "captain": false,
     "level": "Lower Bronze",
-    "photo": "/assets/teams-20261111/media/players-jersey/springfield-05.jpg"
+    "photo": "springfield-05.jpg"
    },
    {
     "name": "Yuly",
     "captain": false,
     "level": "Lower Bronze",
-    "photo": "/assets/teams-20261111/media/players-jersey/springfield-06.jpg"
+    "photo": "springfield-06.jpg"
    },
    {
     "name": "Aron",
     "captain": false,
     "level": "Silver",
-    "photo": "/assets/teams-20261111/media/players-jersey/springfield-07.jpg"
+    "photo": "springfield-07.jpg"
    },
    {
     "name": "Gerry",
     "captain": false,
     "level": "Bronze",
-    "photo": "/assets/teams-20261111/media/players-jersey/springfield-08.jpg"
+    "photo": "springfield-08.jpg"
    }
   ]
  },
@@ -516,56 +507,55 @@
   "slug": "sph",
   "team": "SPH Eagles",
   "school": "Sekolah Pelita Harapan",
-  "logo": "/api/reveal-logo/sph/",
   "honor": null,
   "players": [
    {
     "name": "Nathania",
     "captain": true,
     "level": "Bronze",
-    "photo": "/assets/teams-20261111/media/players-jersey/sph-01.jpg"
+    "photo": "sph-01.jpg"
    },
    {
     "name": "Febyta",
     "captain": false,
     "level": "Lower Bronze",
-    "photo": "/assets/teams-20261111/media/players-jersey/sph-02.jpg"
+    "photo": "sph-02.jpg"
    },
    {
     "name": "Dina",
     "captain": false,
     "level": "Silver",
-    "photo": "/assets/teams-20261111/media/players-jersey/sph-03.jpg"
+    "photo": "sph-03.jpg"
    },
    {
     "name": "Jovan",
     "captain": false,
     "level": "Bronze (submitted)",
-    "photo": "/assets/teams-20261111/media/players-jersey/sph-04.jpg"
+    "photo": "sph-04.jpg"
    },
    {
     "name": "Callie",
     "captain": false,
     "level": "Bronze (submitted)",
-    "photo": "/assets/teams-20261111/media/players-jersey/sph-05.jpg"
+    "photo": "sph-05.jpg"
    },
    {
     "name": "Tezar",
     "captain": false,
     "level": "Bronze",
-    "photo": "/assets/teams-20261111/media/players-jersey/sph-06.jpg"
+    "photo": "sph-06.jpg"
    },
    {
     "name": "Michael",
     "captain": false,
     "level": "Silver",
-    "photo": "/assets/teams-20261111/media/players-jersey/sph-07.jpg"
+    "photo": "sph-07.jpg"
    },
    {
     "name": "Tim",
     "captain": false,
     "level": "Bronze",
-    "photo": "/assets/teams-20261111/media/players-jersey/sph-08.jpg"
+    "photo": "sph-08.jpg"
    }
   ]
  }

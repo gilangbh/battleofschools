@@ -67,6 +67,9 @@ CREATE TABLE IF NOT EXISTS challenge (
 CREATE TABLE IF NOT EXISTS settings (key TEXT PRIMARY KEY, value TEXT);
 `);
 
+// Added after the first release: portrait file name under public/assets/players.
+if (!db.prepare('PRAGMA table_info(players)').all().some((c) => c.name === 'photo')) db.exec('ALTER TABLE players ADD COLUMN photo TEXT');
+
 export const all = (sql, ...p) => db.prepare(sql).all(...p);
 export const get = (sql, ...p) => db.prepare(sql).get(...p);
 export const run = (sql, ...p) => db.prepare(sql).run(...p);

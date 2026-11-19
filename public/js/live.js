@@ -9,6 +9,7 @@
   let timer = null;
   let busy = false;
   let again = false;
+  let lastHtml = null;
 
   const setConn = (state, text) => { if (conn) { conn.dataset.state = state; conn.textContent = text; } };
 
@@ -28,6 +29,8 @@
       const res = await fetch(region.dataset.src, { cache: 'no-store' });
       if (res.ok) {
         const html = await res.text();
+        if (html === lastHtml) { busy = false; if (again) { again = false; refresh(); } return; }
+        lastHtml = html;
         const before = {};
         region.querySelectorAll('[data-k]').forEach((el) => { before[el.dataset.k] = el.textContent; });
         region.innerHTML = html;

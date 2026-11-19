@@ -29,14 +29,23 @@ export function seedIfEmpty() {
         const base = p.level.replace(/\(.*?\)/g, '').trim().toLowerCase();
         const level = base === 'silver' || base === 'low silver' ? 'silver' : base === 'lower bronze' ? 'lower_bronze' : 'bronze';
         run(
-          'INSERT INTO players (team_id, name, level, level_pending, is_captain) VALUES (?, ?, ?, ?, ?)',
-          s.slug, p.name, level, pending, p.captain ? 1 : 0,
+          'INSERT INTO players (team_id, name, level, level_pending, is_captain, photo) VALUES (?, ?, ?, ?, ?, ?)',
+          s.slug, p.name, level, pending, p.captain ? 1 : 0, p.photo || null,
         );
       }
     });
     DEFAULT_STATIONS.forEach((name, i) => run('INSERT INTO stations (name, sort) VALUES (?, ?)', name, i));
   });
   return true;
+}
+
+/** Gives players that were loaded before portraits existed their photo, matched by school and name. */
+export function backfillPhotos() {
+  const file = path.join(process.cwd(), 'seed', 'schools.json');
+  if (!fs.existsSync(file)) return;
+  for (const s of JSON.parse(fs.readFileSync(file, 'utf8'))) {
+    for (const p of s.players) if (p.photo) run('UPDATE players SET photo = ? WHERE team_id = ? AND name = ? AND photo IS NULL', p.photo, s.slug, p.name);
+  }
 }
 
 export function ensureAdmin(email) {

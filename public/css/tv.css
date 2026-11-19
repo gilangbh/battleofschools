@@ -1,0 +1,152 @@
+/* TV scoreboard. One fixed 16:9 screen, sized in viewport-height units so it scales to any TV. */
+.sb-page{background:#081f42;color:var(--cream);overflow:hidden}
+.sb{--panel:#12356a;--panel-2:#0d2b55;--edge:#f7f3e826;height:100vh;display:grid;grid-template-rows:auto minmax(0,1fr);gap:1.6vh;padding:1.8vh 2.6vh 0;
+  background:
+    radial-gradient(120vh 70vh at 12% -10%,#2e77d055,transparent 60%),
+    radial-gradient(90vh 60vh at 100% 110%,#c1d05226,transparent 60%),
+    repeating-linear-gradient(135deg,transparent 0 5vh,#f7f3e806 5vh 5.3vh),
+    #081f42}
+.sb p{margin:0;max-width:none}
+
+/* Top bar */
+.sb-top{display:flex;align-items:center;gap:3vh}
+.sb-logo{height:5.6vh;width:auto}
+.sb-title{flex:1;min-width:0;border-left:.5vh solid var(--lime);padding-left:2vh}
+.sb-title p{font-size:1.45vh;font-weight:600;letter-spacing:.16em;text-transform:uppercase;color:var(--lime)}
+.sb-title h1{margin:0;font-size:5.6vh;line-height:1;letter-spacing:-.055em;text-transform:uppercase}
+.sb-title h1 span{color:var(--lime)}
+.sb-now{display:flex;flex-direction:column;align-items:flex-end;gap:.5vh}
+.sb-clock{font-size:5.4vh;font-weight:900;line-height:1;font-variant-numeric:tabular-nums;letter-spacing:-.04em}
+.sb-conn{font-size:1.5vh;letter-spacing:.16em}
+.sb-conn::before{width:1.2vh;height:1.2vh}
+.sb-conn[data-state=live]{color:var(--lime)}
+.sb-conn[data-state=live]::before{background:var(--red);animation:sb-pulse 1.4s ease-in-out infinite}
+.sb-qr{display:flex;align-items:center;gap:1.4vh;background:var(--lime);color:var(--navy);padding:1vh 1.8vh 1vh 1vh;transform:rotate(-1.2deg)}
+.sb-qr-code{width:10vh;height:10vh;flex:none;background:var(--cream);padding:.7vh}
+.sb-qr-code svg{display:block;width:100%;height:100%}
+.sb-qr-copy{display:flex;flex-direction:column;line-height:1.25;font-size:1.45vh}
+.sb-qr-copy strong{font-size:2.4vh;font-weight:900;letter-spacing:-.045em;line-height:1.05;margin-bottom:.4vh}
+.sb-qr-copy b{font-weight:600}
+
+/* Body grid */
+.sb-body{min-height:0;display:grid;grid-template-columns:minmax(0,1fr) 50vh;grid-template-rows:minmax(0,1fr) auto;gap:1.4vh 2vh}
+.sb-courts{min-height:0;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));grid-auto-rows:minmax(0,1fr);gap:1.4vh}
+.sb-courts[data-count="1"]{grid-template-columns:1fr}
+.sb-courts[data-count="2"],.sb-courts[data-count="4"]{grid-template-columns:repeat(2,minmax(0,1fr))}
+
+/* Court card */
+.sb-court{position:relative;min-height:0;overflow:hidden;display:grid;grid-template-rows:auto minmax(0,1fr);background:var(--panel-2);border:.15vh solid var(--edge)}
+.sb-court-head{display:flex;align-items:center;gap:1.2vh;padding:.9vh 1.2vh .9vh .9vh;background:#f7f3e80f}
+.sb-num{flex:none;display:grid;place-items:center;width:5vh;height:5vh;background:var(--cream);color:var(--navy);font-size:3.6vh;font-weight:900;line-height:1}
+.sb-court-title{flex:1;min-width:0;display:flex;flex-direction:column;line-height:1.15}
+.sb-court-title b{font-size:1.35vh;font-weight:600;letter-spacing:.18em;text-transform:uppercase;opacity:.75}
+.sb-court-title span{font-size:2vh;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.sb-chip{flex:none;font-size:1.4vh;font-weight:600;letter-spacing:.14em;text-transform:uppercase;border:.15vh solid var(--edge);padding:.5vh 1vh;white-space:nowrap}
+.sb-chip.is-live{background:var(--red);border-color:var(--red);color:#fff;display:inline-flex;align-items:center;gap:.7vh}
+.sb-chip.is-live::before{content:"";width:1vh;height:1vh;border-radius:50%;background:#fff;animation:sb-pulse 1.4s ease-in-out infinite}
+
+.sb-court.is-live{background:linear-gradient(160deg,var(--panel),var(--panel-2) 70%);border-color:var(--lime);box-shadow:0 0 0 .15vh var(--lime),0 1.5vh 4vh #0008}
+.sb-court.is-live .sb-court-head{background:var(--lime);color:var(--navy)}
+.sb-court.is-live .sb-num{background:var(--navy);color:var(--lime)}
+.sb-court.is-live .sb-court-title b{opacity:1}
+
+.sb-court.is-live{grid-template-rows:auto repeat(2,minmax(0,1fr))}
+.sb-team{min-height:0;display:grid;grid-template-columns:auto minmax(0,1fr);grid-template-rows:minmax(0,1fr);gap:1.4vh;align-items:stretch;padding:1vh 1.2vh}
+.sb-team + .sb-team{border-top:.15vh solid var(--edge)}
+.sb-photos{display:flex;gap:.6vh;min-height:0;height:100%}
+.sb-photo{position:relative;margin:0;height:100%;aspect-ratio:4/5;overflow:hidden;background:#c9c7c2}
+.sb-photo img{display:block;width:100%;height:100%;object-fit:cover;object-position:50% 12%}
+.sb-photo figcaption{position:absolute;inset:auto 0 0;padding:2.4vh .7vh .5vh;background:linear-gradient(transparent,#081f42e6 62%);font-size:1.55vh;font-weight:600;line-height:1.1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.sb-photo.is-gold{outline:.4vh solid var(--lime);outline-offset:-.4vh}
+.sb-photo.is-gold figcaption{color:var(--lime)}
+.sb-photo.is-crest,.sb-photo-none{display:grid;place-items:center;background:#f7f3e80f}
+.sb-photo-none{position:absolute;inset:0}
+.sb-photo.is-crest .tournament-team-mark,.sb-photo-none .tournament-team-mark{--tournament-mark-size:6vh;opacity:.5}
+.sb-team-info{min-width:0;display:flex;flex-direction:column;justify-content:space-between;align-items:flex-end}
+.sb-team-name{align-self:stretch;display:flex;align-items:center;gap:.9vh;line-height:1.08}
+.sb-team-name .tournament-team-mark{--tournament-mark-size:4.2vh;--tournament-mark-padding:.3vh;flex:none}
+.sb-team-name strong{font-size:2.3vh;font-weight:900;letter-spacing:-.04em;text-wrap:balance}
+.sb-score{display:block;min-width:1.25em;text-align:center;font-size:8.4vh;font-weight:900;line-height:1;letter-spacing:-.04em;font-variant-numeric:tabular-nums;padding:0 .12em;color:var(--cream);border-bottom:.6vh solid transparent}
+.sb-team.is-lead .sb-score{color:var(--lime);border-bottom-color:var(--lime)}
+.sb-score.is-changed{animation:sb-pop 2.4s ease-out}
+
+/* Idle courts */
+.sb-court.is-next,.sb-court.is-free{background:#0d2b5599}
+.sb-versus{flex:1;display:grid;grid-template-columns:minmax(0,1fr) auto minmax(0,1fr);align-items:center;gap:1vh;padding:1vh 1.4vh}
+.sb-versus-team{display:flex;flex-direction:column;align-items:center;gap:1.2vh;text-align:center}
+.sb-versus-team .tournament-team-mark{--tournament-mark-size:11vh;--tournament-mark-padding:.6vh}
+.sb-versus-team strong{font-size:2.2vh;font-weight:900;letter-spacing:-.04em;line-height:1.1;text-wrap:balance}
+.sb-v{font-size:3vh;font-weight:900;color:var(--lime);font-style:italic}
+.sb-court.is-free{border-style:dashed}
+.sb-court.is-free .sb-num{background:transparent;color:var(--cream);border:.15vh solid var(--edge)}
+.sb-court.is-free .sb-court-title{opacity:.7}
+.sb-ghost{flex:1;display:grid;place-items:center;font-size:24vh;font-weight:900;line-height:1;color:transparent;-webkit-text-stroke:.2vh #f7f3e81f}
+
+/* Standings */
+.sb-side{min-height:0;display:flex;flex-direction:column;gap:1.4vh;overflow:hidden}
+.sb-table{width:100%;table-layout:fixed;border-collapse:collapse;font-variant-numeric:tabular-nums;background:var(--panel-2);border:.15vh solid var(--edge);flex:1}
+.sb-table caption{text-align:left;padding:0}
+.sb-table caption span{display:inline-block;background:var(--lime);color:var(--navy);font-size:2.2vh;font-weight:900;letter-spacing:-.03em;line-height:1;padding:.8vh 1.4vh;text-transform:uppercase}
+.sb-table thead th{font-size:1.2vh;font-weight:600;letter-spacing:.14em;text-transform:uppercase;text-align:right;padding:.6vh 1.2vh;opacity:.65}
+.sb-table thead th:nth-child(1){width:4.6vh}.sb-table thead th:nth-child(3){width:9vh}.sb-table thead th:nth-child(4){width:10vh}
+.sb-table thead th:nth-child(2){text-align:left}
+.sb-table td,.sb-table tbody th{padding:0 1.2vh;border-top:.15vh solid var(--edge);text-align:right;font-size:2.1vh;height:5.3vh}
+.sb-table tbody th{text-align:left;font-weight:600}
+.sb-name{display:flex;align-items:center;gap:1vh;min-width:0}
+.sb-name > span:last-child{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.sb-table .tournament-team-mark{--tournament-mark-size:3.9vh;--tournament-mark-padding:.3vh;flex:none}
+.sb-rank{width:4.4vh;text-align:center!important;font-weight:900;font-size:2.4vh!important;padding:0!important}
+.sb-total{font-weight:900;font-size:2.7vh!important}
+.sb-table tr.is-q .sb-rank{background:var(--lime);color:var(--navy)}
+.sb-table tr.is-q .sb-total{color:var(--lime)}
+.sb-side.is-compact .sb-table td,.sb-side.is-compact .sb-table tbody th{height:4vh;font-size:1.8vh}
+.sb-side.is-compact .sb-total{font-size:2.1vh!important}
+.sb-side.is-compact .sb-table .tournament-team-mark{--tournament-mark-size:3vh}
+.sb-ko{display:grid;grid-auto-flow:column;grid-auto-columns:minmax(0,1fr);gap:1vh}
+.sb-ko-card{background:var(--panel-2);border:.15vh solid var(--lime);padding:.9vh 1vh}
+.sb-ko-title{font-size:1.3vh;font-weight:600;letter-spacing:.14em;text-transform:uppercase;color:var(--lime);margin-bottom:.4vh!important}
+.sb-ko-line{display:flex;align-items:center;gap:.8vh;font-size:1.8vh;padding-block:.25vh}
+.sb-ko-line span:nth-child(2){flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.sb-ko-line .tournament-team-mark{--tournament-mark-size:2.8vh}
+.sb-ko-line b{font-weight:900;font-size:2.3vh}
+.sb-ko-line.is-w{color:var(--lime)}
+.sb-wait{font-size:2.4vh;opacity:.8}
+
+/* Results ticker */
+.sb-ticker{grid-column:1/-1;display:flex;align-items:stretch;margin-inline:-2.6vh;background:var(--cream);color:var(--navy);height:5.4vh;overflow:hidden}
+.sb-ticker-label{flex:none;display:flex;align-items:center;background:var(--red);color:#fff;font-size:1.5vh;font-weight:900;letter-spacing:.14em;text-transform:uppercase;padding-inline:2.6vh 2vh;clip-path:polygon(0 0,100% 0,calc(100% - 1.6vh) 100%,0 100%)}
+.sb-ticker-track{flex:1;min-width:0;overflow:hidden;display:flex;align-items:center}
+.sb-ticker-items{display:flex;white-space:nowrap;font-size:2.1vh;padding-left:2vh}
+.sb-ticker-items.is-moving{animation:sb-marquee 60s linear infinite}
+.sb-result{display:inline-flex;align-items:baseline;gap:.9vh;padding-right:5vh}
+.sb-result b{font-weight:600}
+.sb-result b.is-w{font-weight:900}
+.sb-result i{font-style:normal;opacity:.5}
+.sb-result em{font-style:normal;font-size:1.35vh;font-weight:600;letter-spacing:.12em;text-transform:uppercase;background:var(--navy);color:var(--cream);padding:.2vh .8vh;align-self:center}
+
+@keyframes sb-pulse{50%{opacity:.25}}
+@keyframes sb-pop{0%{transform:scale(1.5);background:var(--lime);color:var(--navy)}35%{transform:scale(1);background:var(--lime);color:var(--navy)}100%{background:transparent}}
+@keyframes sb-marquee{to{transform:translateX(-50%)}}
+@media (prefers-reduced-motion:reduce){.sb *,.sb *::before{animation:none!important}}
+
+/* Portrait or narrow windows: stack instead of the fixed TV grid */
+@media (max-aspect-ratio:1/1){
+  .sb-page{overflow:auto}
+  .sb{height:auto;min-height:100vh;padding-bottom:2vh}
+  .sb-top{flex-wrap:wrap}
+  .sb-body{grid-template-columns:1fr}
+  .sb-courts{grid-template-columns:1fr!important;grid-auto-rows:auto}
+  .sb-team{min-height:16vh}
+  .sb-ticker{display:none}
+}
+
+
+.sb-team-info{position:relative;justify-content:flex-start}
+.sb-team-name{display:block}
+.sb-team-name .tournament-team-mark{position:absolute;left:0;bottom:.6vh;--tournament-mark-size:5.4vh}
+.sb-team-name strong{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;font-size:2.1vh;line-height:1.12;text-wrap:wrap}
+.sb-score{margin-top:auto}
+.sb-name > span:last-child{white-space:normal;line-height:1.12}
+.sb-body{grid-template-columns:minmax(0,1fr) 52vh}
+.sb-table thead th:nth-child(3){width:8vh}
+.sb-versus-team{gap:2.6vh}

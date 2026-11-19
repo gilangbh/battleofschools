@@ -166,25 +166,57 @@ export function publicPage(state, user) {
 
 // ---------- TV scoreboard ----------
 
-function tvCourt(state, court) {
-  const m = state.live.find((x) => x.court === court);
+const SHORT_CAT = { men: 'Men’s', women: 'Women’s', open: 'Open' };
+const courtNumber = (court) => (String(court).match(/\d+/) || [''])[0];
+
+/** The two people on court for one side, with portraits. Null until both lineups are in. */
+function onCourt(state, m, side) {
+  const l = m.lineup[side];
+  if (!l || !m.revealed) return null;
+  const team = side === 'a' ? m.sd.a : m.sd.b;
+  const sub = m.tickets.find((t) => t.team_id === team.id && t.type === 'gold_player' && t.timing === 'start');
+  return [l.player1, l.player2].filter(Boolean).map((p) => {
+    if (sub && sub.player_out === p.id) return { name: team.gold ? team.gold.name : 'Gold Player', photo: team.gold?.photo || null, gold: true };
+    return { name: p.name, photo: p.photo || null, gold: false };
+  });
+}
+
+function tvPortraits(team, people) {
+  if (!people) return h`<div class="sb-photos is-unknown"><div class="sb-photo is-crest">${teamMark(team)}</div><div class="sb-photo is-crest">${teamMark(team)}</div></div>`;
+  return h`<div class="sb-photos">${people.map((p) => h`<figure class="sb-photo${p.gold ? ' is-gold' : ''}">
+    ${p.photo ? h`<img src="/assets/players/${p.photo}" alt="" width="480" height="600" decoding="async">` : h`<span class="sb-photo-none">${teamMark(team)}</span>`}
+    <figcaption>${p.gold ? '★ ' : ''}${p.name}</figcaption></figure>`)}</div>`;
+}
+
+function tvCourt(state, court, live) {
+  const m = live || state.live.find((x) => x.court === court);
+  const num = courtNumber(court);
+  const badge = h`<span class="sb-num">${num || '–'}</span>`;
   if (!m) {
     const next = state.allMatches
       .filter((x) => x.status === 'scheduled' && x.court === court && x.sd.a && x.sd.b)
       .sort((x, y) => x.sd.round - y.sd.round || String(x.sd.start_time || '').localeCompare(String(y.sd.start_time || '')) || x.id - y.id)[0];
-    return h`<article class="tv-court is-idle">
-      <header><span class="tv-court-name">${court}</span><span class="tv-court-state">${next ? 'Up next' : 'Free'}</span></header>
-      ${next ? h`<p class="tv-next">${next.sd.a.name} <span>v</span> ${next.sd.b.name}</p><p class="tv-cat">${categoryTag(next.category)}${next.sd.start_time ? h` · ${next.sd.start_time}` : ''}</p>` : h`<p class="tv-next tv-free">No match on this court</p>`}
+    if (!next) return h`<article class="sb-court is-free"><header class="sb-court-head">${badge}<div class="sb-court-title"><b>${court}</b><span>No match right now</span></div></header><p class="sb-ghost" aria-hidden="true">${num}</p></article>`;
+    return h`<article class="sb-court is-next">
+      <header class="sb-court-head">${badge}<div class="sb-court-title"><b>${court}</b><span>${SHORT_CAT[next.category]} doubles</span></div><span class="sb-chip">Up next${next.sd.start_time ? h` · ${next.sd.start_time}` : ''}</span></header>
+      <div class="sb-versus">
+        <div class="sb-versus-team">${teamMark(next.sd.a)}<strong>${next.sd.a.name}</strong></div>
+        <span class="sb-v">v</span>
+        <div class="sb-versus-team">${teamMark(next.sd.b)}<strong>${next.sd.b.name}</strong></div>
+      </div>
     </article>`;
   }
+  const lead = (m.score_a ?? 0) === (m.score_b ?? 0) ? null : (m.score_a ?? 0) > (m.score_b ?? 0) ? 'a' : 'b';
   const row = (team, side) => {
     const score = side === 'a' ? m.score_a : m.score_b;
-    const names = pairNames(state, m, side);
-    return h`<div class="tv-row">${teamMark(team)}<div class="tv-team"><strong>${team ? team.name : 'TBD'}</strong>${names ? h`<span>${names.join(' / ')}</span>` : ''}</div><span class="tv-score" data-k="m${m.id}${side}">${score == null ? 0 : score}</span></div>`;
+    return h`<div class="sb-team${lead === side ? ' is-lead' : ''}">
+      ${tvPortraits(team, onCourt(state, m, side))}
+      <div class="sb-team-info"><p class="sb-team-name">${teamMark(team)}<strong>${team ? team.name : 'To be decided'}</strong></p>
+        <span class="sb-score" data-k="m${m.id}${side}">${score == null ? 0 : score}</span></div>
+    </div>`;
   };
-  return h`<article class="tv-court is-live">
-    <header><span class="tv-court-name">${court}</span><span class="tv-court-state tv-live">Live</span></header>
-    <p class="tv-cat">${categoryTag(m.category)} · ${showdownTitle(m.sd)}</p>
+  return h`<article class="sb-court is-live">
+    <header class="sb-court-head">${badge}<div class="sb-court-title"><b>${court}</b><span>${SHORT_CAT[m.category]} doubles</span></div><span class="sb-chip is-live">Live</span></header>
     ${row(m.sd.a, 'a')}${row(m.sd.b, 'b')}
   </article>`;
 }
@@ -192,59 +224,60 @@ function tvCourt(state, court) {
 function tvStandings(state, group) {
   const rows = state.standings[group] || [];
   const showChallenge = state.stations.length > 0;
-  return h`<table class="tv-table">
-    <caption>Group ${group}</caption>
-    <thead><tr><th></th><th scope="col">School</th><th scope="col">Games</th>${showChallenge ? h`<th scope="col">Chall.</th>` : ''}<th scope="col">Total</th></tr></thead>
-    <tbody>${rows.map((r) => h`<tr class="${r.rank <= 2 && r.played > 0 ? 'is-q' : ''}"><td class="tv-rank">${r.rank}</td><th scope="row"><span class="tv-name">${teamMark(r.team)}<span>${r.team.name}</span></span></th><td>${r.games}</td>${showChallenge ? h`<td>${r.challenge.toFixed(1)}</td>` : ''}<td class="tv-total">${showChallenge ? r.total.toFixed(1) : r.total}</td></tr>`)}</tbody>
+  return h`<table class="sb-table">
+    <caption><span>Group ${group}</span></caption>
+    <thead><tr><th></th><th scope="col">School</th><th scope="col">Games</th><th scope="col">${showChallenge ? 'Total' : 'Points'}</th></tr></thead>
+    <tbody>${rows.map((r) => h`<tr class="${r.rank <= 2 && r.played > 0 ? 'is-q' : ''}"><td class="sb-rank">${r.rank}</td><th scope="row"><span class="sb-name">${teamMark(r.team)}<span>${r.team.name}</span></span></th><td>${r.games}</td><td class="sb-total">${showChallenge ? r.total.toFixed(1) : r.total}</td></tr>`)}</tbody>
   </table>`;
 }
 
 function tvKnockout(state) {
   const sds = state.knockout.filter((sd) => sd.a && sd.b);
   if (!sds.length) return '';
-  return h`<div class="tv-ko">${sds.map((sd) => {
+  return h`<div class="sb-ko">${sds.map((sd) => {
     const s = sd.summary;
-    return h`<div class="tv-ko-card"><p class="tv-ko-title">${showdownTitle(sd)}</p>
-      <p class="tv-ko-line ${s.winner === 'a' ? 'is-w' : ''}">${teamMark(sd.a)}<span>${sd.a.name}</span><b>${s.catsA}</b></p>
-      <p class="tv-ko-line ${s.winner === 'b' ? 'is-w' : ''}">${teamMark(sd.b)}<span>${sd.b.name}</span><b>${s.catsB}</b></p></div>`;
+    return h`<div class="sb-ko-card"><p class="sb-ko-title">${showdownTitle(sd)}</p>
+      <p class="sb-ko-line ${s.winner === 'a' ? 'is-w' : ''}">${teamMark(sd.a)}<span>${sd.a.name}</span><b>${s.catsA}</b></p>
+      <p class="sb-ko-line ${s.winner === 'b' ? 'is-w' : ''}">${teamMark(sd.b)}<span>${sd.b.name}</span><b>${s.catsB}</b></p></div>`;
   })}</div>`;
 }
 
 export function tvPartial(state) {
-  // Courts in the configured order, plus any court name typed on a live match that is not in the list.
-  const extra = [...new Set(state.live.map((m) => m.court).filter((c) => c && !state.courts.includes(c)))];
-  const courts = [...state.courts, ...extra];
-  const unassigned = state.live.filter((m) => !m.court);
-  const latest = state.recent.slice(0, 8);
+  // Courts in the configured order, plus any live match on a court that is not in the list or has none.
+  const stray = state.live.filter((m) => !m.court || !state.courts.includes(m.court));
+  const latest = state.recent.slice(0, 10);
   const koActive = state.knockout.some((sd) => sd.a && sd.b);
+  const result = (m) => h`<span class="sb-result"><b class="${m.score_a > m.score_b ? 'is-w' : ''}">${m.sd.a?.name} ${m.score_a}</b><i>–</i><b class="${m.score_b > m.score_a ? 'is-w' : ''}">${m.score_b} ${m.sd.b?.name}</b><em>${SHORT_CAT[m.category]}</em></span>`;
   return h`
-<section class="tv-courts" data-count="${courts.length}" aria-label="Courts">
-  ${courts.map((c) => tvCourt(state, c))}
-  ${unassigned.map((m) => tvCourt({ ...state, live: [{ ...m, court: 'Court to be confirmed' }] }, 'Court to be confirmed'))}
+<section class="sb-courts" data-count="${state.courts.length + stray.length}" aria-label="Courts">
+  ${state.courts.map((c) => tvCourt(state, c))}
+  ${stray.map((m) => tvCourt(state, m.court || 'Court to be confirmed', m))}
 </section>
-<aside class="tv-side">
+<aside class="sb-side${koActive ? ' is-compact' : ''}">
   ${koActive ? tvKnockout(state) : ''}
-  ${state.groupsSet ? h`<div class="tv-groups${koActive ? ' is-compact' : ''}">${tvStandings(state, 'A')}${tvStandings(state, 'B')}</div>` : h`<p class="tv-wait">Groups are set at the live draw on 25 November.</p>`}
+  ${state.groupsSet ? h`${tvStandings(state, 'A')}${tvStandings(state, 'B')}` : h`<p class="sb-wait">Groups are set at the live draw on 25 November.</p>`}
 </aside>
-<footer class="tv-ticker" aria-label="Latest results">
-  <span class="tv-ticker-label">Latest results</span>
-  <div class="tv-ticker-items">${latest.length ? latest.map((m) => h`<span class="tv-result"><b>${m.sd.a?.name}</b> ${m.score_a}–${m.score_b} <b>${m.sd.b?.name}</b> <i>${CATEGORY_LABEL[m.category].replace(' doubles', '')}</i></span>`) : h`<span class="tv-result">Results appear here as matches finish.</span>`}</div>
+<footer class="sb-ticker" aria-label="Latest results">
+  <span class="sb-ticker-label">Latest results</span>
+  <div class="sb-ticker-track">${latest.length
+    ? h`<div class="sb-ticker-items${latest.length > 3 ? ' is-moving' : ''}">${latest.map(result)}${latest.length > 3 ? latest.map(result) : ''}</div>`
+    : h`<div class="sb-ticker-items"><span class="sb-result">Results appear here as matches finish.</span></div>`}</div>
 </footer>`;
 }
 
 export function tvPage(state, qrSvg, publicUrl) {
   const shown = publicUrl.replace(/^https?:\/\//, '').replace(/\/$/, '');
   const body = h`
-<main class="tv" id="main">
-  <header class="tv-head">
-    <img src="/assets/logo.svg" alt="Battle of Schools" class="tv-logo">
-    <div class="tv-title"><p class="eyebrow">${state.settings.event_title} · ${state.settings.venue}</p><h1>Live scoreboard</h1></div>
-    <div class="tv-now"><div class="tv-clock" id="clock" aria-hidden="true"></div><span class="conn tv-conn" id="conn" data-state="connecting">Connecting…</span></div>
-    <div class="tv-qr"><div class="tv-qr-code">${raw(qrSvg)}</div><div class="tv-qr-copy"><strong>Scores on your phone</strong><span>Scan the code or open</span><b>${shown}</b></div></div>
+<main class="sb" id="main">
+  <header class="sb-top">
+    <img src="/assets/logo.svg" alt="Battle of Schools" class="sb-logo">
+    <div class="sb-title"><p>${state.settings.event_title} · ${state.settings.venue}</p><h1>Live <span>scoreboard</span></h1></div>
+    <div class="sb-now"><div class="sb-clock" id="clock" aria-hidden="true"></div><span class="conn sb-conn" id="conn" data-state="connecting">Connecting…</span></div>
+    <div class="sb-qr"><div class="sb-qr-code">${raw(qrSvg)}</div><div class="sb-qr-copy"><strong>Scores on your phone</strong><span>Scan, or open</span><b>${shown}</b></div></div>
   </header>
-  <div id="live-region" class="tv-body" data-src="/partial/tv">${tvPartial(state)}</div>
+  <div id="live-region" class="sb-body" data-src="/partial/tv">${tvPartial(state)}</div>
 </main>`;
-  return layout({ title: 'TV scoreboard', body, bare: true, bodyClass: 'tv-page', scripts: ['/js/live.js'] });
+  return layout({ title: 'TV scoreboard', body, bare: true, bodyClass: 'sb-page', scripts: ['/js/live.js'], styles: ['/css/tv.css'] });
 }
 
 // ---------- Login ----------
