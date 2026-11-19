@@ -1,0 +1,20 @@
+{
+  "name": "bos-scores",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Battle of Schools Homecoming 2026 live scoring, lineups and scoreboard",
+  "engines": {
+    "node": ">=22.13"
+  },
+  "scripts": {
+    "start": "node --no-warnings server.js",
+    "dev": "node --watch server.js",
+    "test": "node --test",
+    "scrape": "node scripts/scrape.mjs"
+  },
+  "dependencies": {
+    "express": "^4.21.2",
+    "qrcode": "^1.5.4"
+  }
+}
