@@ -1,5 +1,5 @@
 import { h, raw, layout, teamMark, categoryTag, showdownTitle, scoreText, flash, LEVEL_LABEL } from './ui.js';
-import { isKnockout, ticketBalance, GOLD_DEPLOYMENTS, GOLDEN_POINTS, GROUP_GAMES, KNOCKOUT_TARGET, CATEGORY_LABEL } from '../rules.js';
+import { isKnockout, ticketBalance, goldReplaceError, GOLD_DEPLOYMENTS, GOLDEN_POINTS, GROUP_GAMES, KNOCKOUT_TARGET, CATEGORY_LABEL } from '../rules.js';
 
 const SHORT = { men: 'Men’s', women: 'Women’s', open: 'Open' };
 const roundTitle = (sd) => (sd.stage === 'group' ? `Round ${sd.round}` : sd.stage === 'semi' ? 'Semifinals' : showdownTitle(sd));
@@ -36,7 +36,7 @@ export function deskPage(state, user, query) {
 
   const body = h`
 <main id="main" class="page">
-  <div class="tournament-hero"><div class="wrap hero-row"><h1 class="page-title">Scoring desk</h1><a class="button small outline" href="/desk/challenge">Challenge points</a></div></div>
+  <div class="tournament-hero"><div class="wrap hero-row"><h1 class="page-title">Scoring desk</h1><a class="button small outline" href="/desk/activity">School Yard points</a></div></div>
   <div class="wrap tournament-body">
     ${flash(query)}
     <section aria-labelledby="courts-h">
@@ -122,8 +122,11 @@ function teamBlock(state, m, side) {
         <span>Called at 40–40: wins the point and the game. If both schools call it, record only the school that won the rock-paper-scissors.</span>
       </div>` : h`<div class="ticket-option"><span class="is-missing">${hasGold ? 'No Golden Point here: this school has a Gold Player in this match.' : 'No Golden Points left.'}</span></div>`}
       ${canGoldHere ? h`<div class="ticket-option is-stack">
-        <span><strong>${team.gold.name} ★</strong> plays instead of (same gender only):</span>
-        ${l ? h`<div class="ticket-buttons">${[l.player1, l.player2].filter(Boolean).map((p) => h`<button class="button small lime" type="submit" name="use" value="out:${p.id}">${p.name}</button>`)}</div>
+        <span><strong>${team.gold.name} ★</strong> plays instead of the highest-rated player of the pair, same gender only:</span>
+        ${l ? h`<div class="ticket-buttons">${[l.player1, l.player2].filter(Boolean).map((p) => {
+            const why = goldReplaceError(team.gold, l.player1, l.player2, p);
+            return why ? h`<span class="ticket-no"><b>${p.name}</b> ${why}</span>` : h`<button class="button small lime" type="submit" name="use" value="out:${p.id}">${p.name}</button>`;
+          })}</div>
           <div class="ticket-when"><label><input type="radio" name="timing" value="start" checked> Before the first serve</label><label><input type="radio" name="timing" value="after_g2"> After game 2</label></div>`
           : h`<span class="is-missing">Add the pair first.</span>`}
       </div>` : h`<div class="ticket-option"><span class="is-missing">${hasGold ? 'Gold Player already in this match.' : hasPoint ? 'No Gold Player here: this school used a Golden Point in this match.' : !team.gold ? 'This school has no approved Gold Player.' : 'No Gold Player deployments left.'}</span></div>`}
@@ -135,7 +138,7 @@ function matchCard(state, m) {
   const sd = m.sd;
   const ko = isKnockout(sd.stage);
   const ready = sd.a && sd.b;
-  const rule = ko ? 'First to 6. At 5–5 a tiebreak decides it, so the final score is 6–5.' : `${GROUP_GAMES} games are played, so the scores add up to ${GROUP_GAMES}.`;
+  const rule = ko ? 'First to 6. At 5–5 a first-to-7 tiebreak decides it (at 6–6 the next point wins), so the final score is 6–5.' : `${GROUP_GAMES} games are played, so the scores add up to ${GROUP_GAMES}.`;
   if (!ready) return h`<article class="dm dm-scheduled" id="match-${m.id}"><header class="dm-head"><h2>${categoryTag(m.category)}</h2></header><p class="quiet-note">Both schools must be set before this match can be scored.</p></article>`;
 
   const tiebreak = (formId) => (ko ? h`<div class="tb-row"><span>Tiebreak points, only at 5–5</span>
@@ -196,29 +199,6 @@ export function deskShowdownPage(state, user, sd, query) {
   </div>
 </main>`;
   return layout({ title: 'Score entry', body, user, active: 'desk', scripts: ['/js/forms.js'] });
-}
-
-export function challengePage(state, user, query) {
-  const pts = new Map(state.challengeRows.map((c) => [`${c.team_id}:${c.station_id}`, c.points]));
-  const body = h`
-<main id="main" class="page">
-  <div class="tournament-hero"><div class="wrap"><p class="eyebrow"><a href="/desk">← Scoring desk</a></p><h1 class="page-title">Festival Challenge points</h1></div></div>
-  <div class="wrap tournament-body">
-    ${flash(query)}
-    ${state.stations.length === 0
-      ? h`<p class="quiet-note">No challenge stations yet. An admin adds them under Admin → Settings. Until then the standings show padel games only.</p>`
-      : h`<form method="post" action="/desk/challenge">
-        <div class="table-scroll"><table class="tournament-table challenge-table">
-          <thead><tr><th scope="col">School</th>${state.stations.map((st) => h`<th scope="col">${st.name}</th>`)}<th scope="col">Total</th></tr></thead>
-          <tbody>${state.teams.map((t) => h`<tr><th scope="row"><span class="tournament-table-team">${teamMark(t)}<span>${t.name}</span></span></th>
-            ${state.stations.map((st) => h`<td><input type="number" step="0.1" min="0" inputmode="decimal" name="c_${t.id}_${st.id}" value="${pts.get(`${t.id}:${st.id}`) ?? ''}" aria-label="${t.name}, ${st.name}"></td>`)}
-            <td><strong>${(state.challengeByTeam.get(t.id) || 0).toFixed(1)}</strong></td></tr>`)}</tbody>
-        </table></div>
-        <p class="form-actions"><button class="button" type="submit">Save challenge points</button></p>
-      </form>`}
-  </div>
-</main>`;
-  return layout({ title: 'Challenge points', body, user, active: 'desk' });
 }
 
 export { CATEGORY_LABEL };

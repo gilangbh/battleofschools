@@ -7,7 +7,7 @@
 .sponsor-tokusen-logo{width:100px;height:auto;object-fit:contain;flex:none}
 .sponsor-silver-logo{width:116px;height:auto;object-fit:contain;flex:none}
 .score-media-credit{display:flex;align-items:center;gap:14px;padding-bottom:18px;margin-bottom:20px;border-bottom:1px solid var(--line);font-size:12px;font-weight:600}
-.score-media-credit img{width:46px;height:auto;object-fit:contain;background:transparent}
+.score-media-credit img{width:78px;height:auto;object-fit:contain;background:transparent}
 .sb.sb-has-partners{grid-template-rows:auto minmax(0,1fr) 5.8vh;gap:1.2vh}
 .sb-partners{display:flex;align-items:center;gap:4vh;background:transparent;color:var(--cream);border-top:1px solid #f7f3e833;padding:0;overflow:hidden}
 .sb-partner{display:flex;align-items:center;gap:1.4vh;height:100%;min-width:0}
@@ -19,10 +19,10 @@
 .sb-partner-silver{flex:1}
 .sb-partner-silver img{width:9.6vh;height:auto;object-fit:contain;flex:none}
 .sb-partner-media{margin-left:auto;flex:none}
-.sb-partner-media img{height:auto;width:3.8vh;object-fit:contain;background:transparent}
+.sb-partner-media img{height:auto;width:7.4vh;object-fit:contain;background:transparent}
 @media(max-width:700px){.score-sponsors{gap:20px;padding:8px 0;min-height:76px}.sponsor-unit{flex-direction:column;align-items:flex-start;gap:4px}.sponsor-role{font-size:12px}.gold-mark-pair{gap:12px}.sponsor-japfa-logo{width:88px;height:auto}.sponsor-tokusen-logo{width:82px;height:auto}.sponsor-silver-logo{width:92px;height:auto}}
 @media(max-width:370px){.score-sponsors{gap:16px}.gold-mark-pair{gap:10px}.sponsor-japfa-logo{width:76px}.sponsor-tokusen-logo{width:74px}.sponsor-silver-logo{width:82px}}
-@media(max-aspect-ratio:1/1){.sb.sb-has-partners{grid-template-rows:auto auto auto}.sb-partners{flex-wrap:wrap;min-height:94px;gap:16px;padding:14px}.sb-partner{height:auto;flex:auto}.sb-partner span{font-size:14px}.sb-partner-gold .gold-mark-pair{gap:12px}.sb-partner-gold .sb-japfa-logo{width:100px;height:auto}.sb-partner-gold .sb-tokusen-logo{width:80px;height:auto}.sb-partner-silver img{width:100px;height:auto}.sb-partner-media img{width:36px;height:auto}}
+@media(max-aspect-ratio:1/1){.sb.sb-has-partners{grid-template-rows:auto auto auto}.sb-partners{flex-wrap:wrap;min-height:94px;gap:16px;padding:14px}.sb-partner{height:auto;flex:auto}.sb-partner span{font-size:14px}.sb-partner-gold .gold-mark-pair{gap:12px}.sb-partner-gold .sb-japfa-logo{width:100px;height:auto}.sb-partner-gold .sb-tokusen-logo{width:80px;height:auto}.sb-partner-silver img{width:100px;height:auto}.sb-partner-media img{width:70px;height:auto}}
 
 /* The results ticker keeps its full-bleed look above the sponsor rail. */
 .sb.sb-has-partners{padding-bottom:0}

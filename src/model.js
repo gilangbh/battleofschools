@@ -2,6 +2,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { all, get, run, tx, getSetting, setSetting } from './db.js';
 import { CATEGORIES, computeStandings, showdownSummary, generateGroupRounds, isKnockout } from './rules.js';
+import { summarize } from './activity.js';
 
 const DEFAULT_SETTINGS = {
   event_title: 'Homecoming 2026',
@@ -10,8 +11,6 @@ const DEFAULT_SETTINGS = {
   courts: 'Court 1, Court 2, Court 3, Court 4, Court 5, Court 6',
   public_url: '',
 };
-
-const DEFAULT_STATIONS = [];
 
 /** First run: load the schools and players scraped from battleofschools.id. */
 export function seedIfEmpty() {
@@ -34,7 +33,6 @@ export function seedIfEmpty() {
         );
       }
     });
-    DEFAULT_STATIONS.forEach((name, i) => run('INSERT INTO stations (name, sort) VALUES (?, ?)', name, i));
   });
   return true;
 }
@@ -117,18 +115,20 @@ export function loadState() {
     };
   }
   for (const m of matchById.values()) m.revealed = Boolean(m.lineup.a && m.lineup.b);
-  for (const sd of showdowns) {
-    sd.summary = showdownSummary(sd.stage, sd.matches);
-    if (isKnockout(sd.stage) && (sd.winner === 'a' || sd.winner === 'b')) sd.summary.winner = sd.winner;
-  }
+  for (const sd of showdowns) sd.summary = showdownSummary(sd.stage, sd.matches);
 
-  // Challenge points
-  const stations = all('SELECT * FROM stations ORDER BY sort, id');
-  const challengeRows = all('SELECT * FROM challenge');
-  const challengeByTeam = new Map();
-  for (const c of challengeRows) challengeByTeam.set(c.team_id, (challengeByTeam.get(c.team_id) || 0) + c.points);
+  // School Yard activities and the pre-event School Spirit bonus
+  const activityRows = all('SELECT * FROM activity');
+  for (const r of activityRows) { try { r.raw = JSON.parse(r.raw); } catch { r.raw = {}; } }
+  const bonusByTeam = new Map(all('SELECT * FROM bonus').map((b) => [b.team_id, b.points]));
+  const yardByTeam = new Map(teams.map((t) => [t.id, summarize(activityRows.filter((r) => r.team_id === t.id))]));
+  const yardStarted = activityRows.length > 0 || bonusByTeam.size > 0;
+  const extraByTeam = new Map(teams.map((t) => {
+    const y = yardByTeam.get(t.id);
+    return [t.id, { yard: y.banked, bonus: bonusByTeam.get(t.id) || 0, pending: !y.complete || !bonusByTeam.has(t.id) }];
+  }));
 
-  const standings = computeStandings(teams, showdowns, challengeByTeam);
+  const standings = computeStandings(teams, showdowns, extraByTeam);
 
   // Appearances (group stage) and tickets used per team
   const appearances = new Map(players.map((p) => [p.id, 0]));
@@ -151,7 +151,7 @@ export function loadState() {
 
   return {
     settings, courts, teams, teamById, players, allPlayers, playerById, showdowns, sdById, matchById, allMatches,
-    stations, challengeRows, challengeByTeam, standings, appearances, ticketsByTeam, live, recent,
+    activityRows, yardByTeam, bonusByTeam, yardStarted, standings, appearances, ticketsByTeam, live, recent,
     groupsSet: teams.some((t) => t.grp),
     knockout: showdowns.filter((s) => isKnockout(s.stage)),
   };
@@ -205,17 +205,23 @@ export function fillKnockout() {
       if (!sd || list.length < 2) return;
       if (!untouched(sd)) { notes.push(`Semifinal ${i + 1} already has a lineup or score, so it was left alone`); return; }
       if (list.some((row) => row.place === 'tied')) { notes.push(`Group ${g} has a tie for a semifinal place: set Semifinal ${i + 1} by hand once the committee decides`); return; }
-      if (list[0].place !== 'qualified' || list[1].place !== 'qualified') { notes.push(`Group ${g} is not finished yet`); return; }
-      run('UPDATE showdowns SET team_a = ?, team_b = ?, winner = NULL WHERE id = ?', list[0].team.id, list[1].team.id, sd.id);
+      if (list[0].place !== 'qualified' || list[1].place !== 'qualified') {
+        const waiting = list.filter((row) => row.pending).map((row) => row.team.name);
+        notes.push(waiting.length
+          ? `Group ${g} is still waiting for School Yard results or the School Spirit bonus of ${waiting.join(', ')}. Enter them, or set Semifinal ${i + 1} by hand in the fixtures table`
+          : `Group ${g} still has matches to finish`);
+        return;
+      }
+      run('UPDATE showdowns SET team_a = ?, team_b = ? WHERE id = ?', list[0].team.id, list[1].team.id, sd.id);
       notes.push(`Semifinal ${i + 1}: ${list[0].team.name} v ${list[1].team.name}`);
     });
     if (final && semis.length === 2 && semis.every((sd) => sd.summary.complete)) {
       const w = semis.map((sd) => (sd.summary.winner === 'a' ? sd.team_a : sd.summary.winner === 'b' ? sd.team_b : null));
-      if (!w[0] || !w[1]) notes.push('Confirm the winner of each semifinal first, then fill the final');
+      if (!w[0] || !w[1]) notes.push('A semifinal has no winner yet');
       else if (!untouched(final)) notes.push('The final already has a lineup or score, so it was left alone');
       else {
-        run('UPDATE showdowns SET team_a = ?, team_b = ?, winner = NULL WHERE id = ?', w[0], w[1], final.id);
-        notes.push('Final set from the confirmed semifinal winners');
+        run('UPDATE showdowns SET team_a = ?, team_b = ? WHERE id = ?', w[0], w[1], final.id);
+        notes.push('Final set from the two semifinal winners');
       }
     }
   });
@@ -227,7 +233,9 @@ export function resetResults() {
     run('DELETE FROM tickets');
     run('DELETE FROM lineups');
     run("UPDATE matches SET status = 'scheduled', score_a = NULL, score_b = NULL, tb_a = NULL, tb_b = NULL, started_at = NULL, finished_at = NULL");
-    run('DELETE FROM challenge');
-    run("UPDATE showdowns SET team_a = NULL, team_b = NULL, winner = NULL WHERE stage != 'group'");
+    run('DELETE FROM activity');
+    run('DELETE FROM activity_log');
+    run('DELETE FROM bonus');
+    run("UPDATE showdowns SET team_a = NULL, team_b = NULL WHERE stage != 'group'");
   });
 }

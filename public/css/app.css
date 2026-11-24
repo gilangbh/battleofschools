@@ -431,3 +431,46 @@ tr.is-tied small{color:#b4291d}
 .winner-actions{display:flex;flex-wrap:wrap;gap:.5rem;align-items:center}
 .winner-actions .button[disabled]{opacity:.4;cursor:not-allowed}
 .panel-title small{text-align:right}
+
+/* ---------- School Yard points (scoring desk) ---------- */
+.yard-form{max-width:62rem}
+.yard-st{border-top:2px solid var(--navy);margin-top:1.6rem;padding-top:.8rem}
+.yard-st-head{display:flex;align-items:baseline;justify-content:space-between;gap:.5rem 1.5rem;flex-wrap:wrap}
+.yard-st-head h3{margin:0;font-size:1.15rem}
+.yard-st-head h3 small{font-size:.72rem;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:#4d5e74;margin-left:.4rem}
+.yard-sum{margin:0;font-size:.85rem;color:#4d5e74}
+.yard-sum b{font-size:1.25rem;color:var(--navy)}
+.yard-rows{list-style:none;margin:.6rem 0 0;padding:0}
+.yard-row{display:grid;grid-template-columns:11rem minmax(0,1fr);gap:.4rem 1rem;align-items:start;padding:.65rem 0;border-top:1px solid var(--line)}
+.yard-when{display:flex;flex-direction:column;line-height:1.3}
+.yard-when b{font-size:.9rem}
+.yard-when span{font-size:.75rem;color:#4d5e74}
+.yard-entry{display:flex;flex-wrap:wrap;gap:.5rem .7rem;align-items:flex-end}
+.yard-entry.dm-panel{grid-column:2;display:flex}
+.yard-entry.is-bonus{margin-top:.6rem}
+.yf{display:flex;flex-direction:column;gap:.2rem;margin:0;font-size:.72rem;font-weight:600;color:#33455c;width:9.5rem}
+.yf.is-wide{width:14rem}
+.yf input,.yf select{width:100%;min-height:40px;font-size:1rem}
+.yf-shots{display:flex;gap:.4rem}
+.yf-shots .yf{width:4.4rem}
+.yard-result{display:flex;align-items:center;gap:.8rem;flex-wrap:wrap}
+.yard-result b{font-size:1.4rem;min-width:2.6rem}
+.yard-result span{font-size:.85rem;color:#33455c;flex:1 1 14rem}
+.yard-row.is-done{background:linear-gradient(90deg,#c8f03c33,transparent 40%)}
+.yard-row.is-done .yard-when{padding-left:.5rem}
+.yard-form .yard-entry .yard-fix{flex:0 0 100%;width:100%;max-width:none;margin:0;font-size:.78rem;color:#33455c}
+.yard-del{flex-basis:100%;display:flex;align-items:center;gap:.4rem;margin:0;font-size:.8rem;font-weight:400}
+.yard-del input{width:auto;min-height:0}
+.yard-table td{white-space:nowrap}
+.yard-table td small{display:block;font-size:.68rem;color:#4d5e74;font-weight:400}
+.yard-table td.is-in{font-weight:600}
+.yard-table tr.is-current th{box-shadow:inset 4px 0 0 var(--lime)}
+.yard-table a{text-decoration:none}
+.yard-log{margin-top:1.5rem}
+.yard-log li{font-size:.82rem}
+.ticket-no{font-size:.78rem;color:#4d5e74;flex-basis:100%}
+.ticket-no b{color:var(--navy)}
+.name-full{display:block;font-size:.72rem;font-weight:400;color:#4d5e74}
+@media(max-width:700px){.yard-row{grid-template-columns:1fr}.yard-entry.dm-panel{grid-column:1}.yf,.yf.is-wide{width:calc(50% - .35rem)}.yf-shots{width:100%}.yf-shots .yf{width:auto;flex:1}}
+.name-cell{flex-wrap:wrap}
+.name-full{flex-basis:100%;order:3}

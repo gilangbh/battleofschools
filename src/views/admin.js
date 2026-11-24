@@ -61,19 +61,14 @@ function setupTab(state) {
 </section>
 
 <section id="knockout"><h2>3. Semifinals and final</h2>
-  <p>When the group stage is finished, this puts A1 v A2 and B1 v B2 into the semifinals. It will not fill a group that is unfinished or tied for a semifinal place: set that semifinal by hand in the table above once the committee decides.</p>
+  <p>When the group matches and every school’s School Yard results are in, this puts A1 v A2 and B1 v B2 into the semifinals. It will not fill a group that is unfinished or tied for a semifinal place: set that semifinal by hand in the table above once the committee decides.</p>
   <form method="post" action="/admin/knockout/fill"><button class="button" type="submit">Fill from current results</button></form>
-  ${state.knockout.filter((sd) => sd.a && sd.b).length ? h`<h3 style="margin-top:1.5rem">Confirm winners</h3>
-  <p class="footnote">The app does not decide who wins a semifinal or the final. Check the three category results, then confirm the winner. The final is filled from the confirmed semifinal winners, and the champion shows publicly once the final’s winner is confirmed.</p>
+  ${state.knockout.filter((sd) => sd.a && sd.b).length ? h`<h3 style="margin-top:1.5rem">Results</h3>
+  <p class="footnote">The first school to win two categories wins, so the third category is only needed at 1–1. Total games do not decide it. The final is filled from the two semifinal winners, and the champion shows once the final has a winner.</p>
   <ul class="winner-list" role="list">${state.knockout.filter((sd) => sd.a && sd.b).map((sd) => {
     const s = sd.summary;
     return h`<li><div><b>${showdownTitle(sd)}</b><span>${sd.a.name} v ${sd.b.name}</span>
-        <small>${s.complete ? `Categories ${s.catsA}–${s.catsB} · games ${s.gamesA}–${s.gamesB}` : `${s.done} of 3 categories scored`}${s.winner ? ` · confirmed: ${(s.winner === 'a' ? sd.a : sd.b).name}` : ''}</small></div>
-      <form method="post" action="/admin/showdown/${sd.id}/winner" class="winner-actions">
-        <button class="button small ${s.winner === 'a' ? 'lime' : 'ghost'}" type="submit" name="side" value="a"${s.complete ? '' : raw(' disabled')}>${sd.a.name} won</button>
-        <button class="button small ${s.winner === 'b' ? 'lime' : 'ghost'}" type="submit" name="side" value="b"${s.complete ? '' : raw(' disabled')}>${sd.b.name} won</button>
-        ${s.winner ? h`<button class="link-button" type="submit" name="side" value="">Clear</button>` : ''}
-      </form></li>`;
+        <small>${s.done ? `Categories ${s.catsA}–${s.catsB}` : 'Not started'}${s.winner ? ` · winner: ${(s.winner === 'a' ? sd.a : sd.b).name}` : ''}</small></div></li>`;
   })}</ul>` : ''}
 </section>`;
 }
@@ -134,7 +129,7 @@ function playersTab(state, teamId) {
       <tbody>${[...everyone, { id: 'new', name: '', level: 'bronze', active: 1 }].map((p) => h`<tr class="${p.id !== 'new' && !p.active ? 'is-inactive' : ''}">
         <td>${p.id === 'new'
           ? h`<input class="name-input" type="text" name="name_new" value="" placeholder="+ Add a player" aria-label="Name of a new player">`
-          : h`<div class="name-cell"><strong class="name-text">${p.name}</strong><button type="button" class="name-edit" data-rename aria-label="Rename ${p.name}" title="Rename">${PENCIL}</button><input class="name-input" type="text" name="name_${p.id}" value="${p.name}" aria-label="Name" hidden></div>`}</td>
+          : h`<div class="name-cell"><strong class="name-text">${p.name}</strong>${p.full_name && p.full_name !== p.name ? h`<small class="name-full">${p.full_name}${p.jersey_name && p.jersey_name !== p.name ? ` · jersey ${p.jersey_name}` : ''}</small>` : ''}<button type="button" class="name-edit" data-rename aria-label="Rename ${p.name}" title="Rename">${PENCIL}</button><input class="name-input" type="text" name="name_${p.id}" value="${p.name}" aria-label="Name" hidden></div>`}</td>
         <td><div class="seg" role="radiogroup" aria-label="Plays as">
           <label><input type="radio" name="gender_${p.id}" value="M"${p.gender === 'M' ? raw(' checked') : ''}><span>Man</span></label>
           <label><input type="radio" name="gender_${p.id}" value="F"${p.gender === 'F' ? raw(' checked') : ''}><span>Woman</span></label>
@@ -149,7 +144,7 @@ function playersTab(state, teamId) {
     </table></div>
     <div class="save-bar"><button class="button" type="submit">Save ${team.name}</button><span class="save-note" data-dirty-note>No unsaved changes.</span></div>
   </form>
-  <p class="footnote">Names and levels were imported from the school pages on battleofschools.id, which do not publish gender. A school’s Gold Player is added as an extra player with “Gold Player ★” on. Turn “Active” off for a player who has withdrawn.</p>
+  <p class="footnote">The name in bold is the short name shown on scoreboards; the registered full name and jersey name sit under it. A school’s Gold Player is an extra player with “Gold Player ★” on, and may only be deployed while “Active” is on, so keep a nominee switched off until the committee approves. Turn “Active” off for a player who has withdrawn.</p>
 </section>`;
 }
 
@@ -175,20 +170,15 @@ function settingsTab(state, visibility) {
     <input type="hidden" name="visibility" value="${visibility}"><button class="button" type="submit">Save settings</button>
   </form>
 </section>
-<section><h2>Festival Challenge stations</h2>
-  <p>Add the 2026 stations here. Their points are entered on the scoring desk and added to the group standings.</p>
-  <ul class="plain-list">${state.stations.map((st) => h`<li>${st.name} <form method="post" action="/admin/stations/${st.id}/delete" class="inline-form" data-confirm="Remove ${st.name} and its points?"><button class="link-button" type="submit">Remove</button></form></li>`)}</ul>
-  <form method="post" action="/admin/stations" class="inline-row"><label>Station name <input type="text" name="name" required></label><button class="button small" type="submit">Add station</button></form>
-</section>
 <section><h2>Backup</h2>
-  <p>Downloads every school, player, fixture, lineup, score, ticket and challenge point as one file. Logins and sign-in links are not included.</p>
+  <p>Downloads every school, player, fixture, lineup, score, ticket and School Yard result as one file. Logins and sign-in links are not included.</p>
   <a class="button ghost" href="/admin/export.json">Download backup</a>
 </section>
 <section><h2>Test data</h2>
-  <p>Use these before the event only. “Load demo data” fills random groups, lineups and scores so you can see every screen working. “Clear results” removes all scores, lineups, tickets and challenge points but keeps schools, players, logins and fixtures.</p>
+  <p>Use these before the event only. “Load demo data” fills random groups, lineups and scores so you can see every screen working. “Clear results” removes all scores, lineups, tickets and School Yard results but keeps schools, players, logins and fixtures.</p>
   <div class="form-actions">
     <form method="post" action="/admin/demo" data-confirm="Replace all fixtures and scores with random demo data?"><button class="button ghost" type="submit">Load demo data</button></form>
-    <form method="post" action="/admin/reset" data-confirm="Remove all scores, lineups, tickets and challenge points?"><button class="button ghost" type="submit">Clear results</button></form>
+    <form method="post" action="/admin/reset" data-confirm="Remove all scores, lineups, tickets and School Yard results?"><button class="button ghost" type="submit">Clear results</button></form>
   </div>
 </section>`;
 }

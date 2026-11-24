@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
-  validateFinalScore, validateRunningScore, validateLineup, showdownSummary, computeStandings, generateGroupRounds, ticketBalance,
+  validateFinalScore, validateRunningScore, validateLineup, showdownSummary, computeStandings, generateGroupRounds, ticketBalance, goldReplaceError,
 } from '../src/rules.js';
 
 const P = (id, level = 'bronze', gender = null, extra = {}) => ({ id, name: `P${id}`, level, gender, is_gold: 0, ...extra });
@@ -79,16 +79,19 @@ test('Gold Player: group stage only, three deployments, same gender, not with a 
   assert.ok(validateLineup({ ...base, stage: 'group', p1: 9, p2: 2 }).length, 'gold cannot be picked as a regular');
 });
 
-test('a knockout winner is never worked out from the scores', () => {
+test('a semifinal or final goes to the first school with two categories, never to total games', () => {
   const m = (a, b, status = 'done') => ({ status, score_a: a, score_b: b });
-  const semi = showdownSummary('semi', [m(6, 2), m(4, 6), m(6, 5)]);
-  assert.deepEqual([semi.winner, semi.catsA, semi.catsB, semi.gamesA, semi.gamesB, semi.complete], [null, 2, 1, 16, 13, true]);
-  assert.equal(showdownSummary('semi', [m(6, 2), m(4, 6), m(null, null, 'live')]).winner, null);
+  const semi = showdownSummary('semi', [m(6, 5), m(0, 6), m(6, 5)]);
+  assert.deepEqual([semi.winner, semi.catsA, semi.catsB, semi.gamesA, semi.gamesB, semi.complete], ['a', 2, 1, 12, 16, true]);
+  const level = showdownSummary('semi', [m(6, 2), m(4, 6), m(null, null, 'live')]);
+  assert.deepEqual([level.winner, level.complete], [null, false], 'at 1-1 the third category is required');
+  const early = showdownSummary('final', [m(6, 2), m(6, 4), m(null, null, 'scheduled')]);
+  assert.deepEqual([early.winner, early.complete], ['a', true], 'at 2-0 the third category is optional');
   const g = showdownSummary('group', [m(3, 2), m(1, 4), m(5, 0)]);
   assert.deepEqual([g.gamesA, g.gamesB, g.complete, g.winner], [9, 6, true, null]);
 });
 
-test('standings add games won and challenge points, per group', () => {
+test('standings add games won, School Yard points and the bonus, per group', () => {
   const teams = [{ id: 'a1', name: 'A1', grp: 'A' }, { id: 'a2', name: 'A2', grp: 'A' }, { id: 'b1', name: 'B1', grp: 'B' }];
   const done = (a, b) => ({ status: 'done', score_a: a, score_b: b });
   const showdowns = [
@@ -96,8 +99,8 @@ test('standings add games won and challenge points, per group', () => {
     { stage: 'group', team_a: 'a2', team_b: 'b1', matches: [done(5, 0)] },
     { stage: 'semi', team_a: 'a1', team_b: 'a2', matches: [done(6, 0)] },
   ];
-  const s = computeStandings(teams, showdowns, new Map([['a2', 2.5]]));
-  assert.deepEqual(s.A.map((r) => [r.team.id, r.games, r.total, r.rank]), [['a2', 5, 7.5, 1], ['a1', 7, 7, 2]]);
+  const s = computeStandings(teams, showdowns, new Map([['a2', { yard: 2.0625, bonus: 0.5 }]]));
+  assert.deepEqual(s.A.map((r) => [r.team.id, r.games, r.total, r.rank]), [['a2', 5, 7.5625, 1], ['a1', 7, 7, 2]]);
   assert.equal(s.B[0].games, 3);
   assert.equal(s.B[0].lost, 3);
 });
@@ -130,4 +133,53 @@ test('schools level on total share a rank and a tie across the top-two cut is he
   assert.deepEqual(clear.A.map((r) => r.place), ['qualified', 'qualified', null]);
   const running = computeStandings(teams, [...mk([['a1', 4], ['a2', 3], ['a3', 1]]), { stage: 'group', team_a: 'a1', team_b: 'b1', matches: [{ status: 'scheduled' }] }], new Map());
   assert.deepEqual(running.A.map((r) => r.place), ['provisional', 'provisional', null]);
+  // Matches finished but one school's activity results are still missing: nobody in that group is confirmed.
+  const waiting = computeStandings(teams, mk([['a1', 4], ['a2', 3], ['a3', 1]]), new Map([['a3', { yard: 1, bonus: 0, pending: true }]]));
+  assert.deepEqual(waiting.A.map((r) => r.place), ['provisional', 'provisional', null]);
+});
+
+// The organizer's thirteen Gold substitution acceptance cases (rules of 23 November 2026).
+test('Gold Player replaces only a highest-rated player of the pair, of the same gender', () => {
+  const G = (gender) => P(9, 'bronze', gender, { is_gold: 1 });
+  const ok = (gold, a, b, out) => goldReplaceError(gold, a, b, out) === null;
+  // 1. Higher-rated same gender: Bronze M + Silver M, Gold M
+  let a = P(1, 'bronze', 'M'); let b = P(2, 'silver', 'M');
+  assert.ok(ok(G('M'), a, b, b));
+  assert.ok(!ok(G('M'), a, b, a), 'replacing the Bronze to leave Gold with Silver is invalid');
+  // 2 and 3. Open: Bronze M + Silver F
+  b = P(2, 'silver', 'F');
+  assert.ok(!ok(G('M'), a, b, a), 'matching the lower-rated player\'s gender does not get round the higher rating');
+  assert.ok(!ok(G('M'), a, b, b));
+  assert.ok(ok(G('F'), a, b, b));
+  assert.ok(!ok(G('F'), a, b, a));
+  // 4. Equal ratings, mixed genders
+  b = P(2, 'bronze', 'F');
+  assert.ok(ok(G('M'), a, b, a));
+  assert.ok(!ok(G('M'), a, b, b));
+  // 5 and 6. Equal ratings, same gender
+  a = P(1, 'bronze', 'F');
+  assert.ok(ok(G('F'), a, b, a) && ok(G('F'), a, b, b));
+  assert.ok(!ok(G('M'), a, b, a) && !ok(G('M'), a, b, b));
+  // 7. Lower Bronze does not tie with Bronze
+  a = P(1, 'lower_bronze', 'F');
+  assert.ok(ok(G('F'), a, b, b));
+  assert.ok(!ok(G('F'), a, b, a));
+  // 8. Low Silver is stored as Silver
+  b = P(2, 'silver', 'F'); a = P(1, 'bronze', 'F');
+  assert.ok(ok(G('F'), a, b, b) && !ok(G('F'), a, b, a));
+  // 9. Approved category is what counts (the stored level is the approved one)
+  // 10. A category still under review cannot be assumed
+  assert.ok(!ok(G('F'), a, P(2, 'bronze', 'F', { level_pending: 1 }), a));
+  assert.ok(!ok(G('F'), P(1, 'bronze', 'F', { level_pending: 1 }), b, b), 'even when the proposed player is the approved one');
+  // 11. Missing gender on the highest-rated player or on the Gold Player
+  assert.ok(!ok(G('F'), a, P(2, 'silver', null), P(2, 'silver', null)));
+  assert.ok(!ok(G(null), a, b, b));
+  // 12. No approved Gold Player (a nominee stays inactive, so the school has none)
+  assert.ok(!ok(null, a, b, b));
+  // 13. Stage: no tickets in semifinals or final
+  const players = [a, b, G('F')];
+  assert.equal(validateLineup({ stage: 'group', category: 'women', players, p1: 1, p2: 2, goldOut: 2 }).length, 0);
+  assert.ok(validateLineup({ stage: 'group', category: 'women', players, p1: 1, p2: 2, goldOut: 1 }).length, 'a direct request naming the lower-rated player is refused');
+  assert.ok(validateLineup({ stage: 'semi', category: 'women', players, p1: 1, p2: 2, goldOut: 2 }).length);
+  assert.ok(validateLineup({ stage: 'final', category: 'women', players, p1: 1, p2: 2, goldOut: 2 }).length);
 });

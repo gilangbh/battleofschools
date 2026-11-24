@@ -1,5 +1,6 @@
 import { h, raw, layout, teamMark, categoryTag, pairNames, showdownTitle, ICON, flash } from './ui.js';
 import { CATEGORY_LABEL, STAGE_LABEL, matchWinner, isKnockout } from '../rules.js';
+import { fmtPoints } from '../activity.js';
 
 const PLACE_LABEL = { qualified: 'Semifinal place', provisional: 'In the top two for now', tied: 'Level on points: committee decides' };
 const pairLine = (names) => (names ? h`<small class="pair">${names.join(' / ')}</small>` : '');
@@ -41,7 +42,7 @@ export function fixtureCard(state, sd) {
     </tbody>
     ${s.done > 0 ? h`<tfoot><tr>
       <td class="${totalA > totalB ? 'tournament-leading' : ''}">${totalA}</td>
-      <th scope="row">${ko ? h`Categories won<small class="ko-games">Games ${s.gamesA}–${s.gamesB}</small>${s.complete ? h`<small class="ko-games">${s.winner ? `Winner: ${(s.winner === 'a' ? sd.a : sd.b)?.name}` : 'Result to be confirmed'}</small>` : ''}` : s.complete ? 'Total' : 'Total so far'}</th>
+      <th scope="row">${ko ? h`Categories won<small class="ko-games">Games ${s.gamesA}–${s.gamesB}</small>${s.winner ? h`<small class="ko-games">Winner: ${(s.winner === 'a' ? sd.a : sd.b)?.name}</small>` : ''}` : s.complete ? 'Total' : 'Total so far'}</th>
       <td class="${totalB > totalA ? 'tournament-leading' : ''}">${totalB}</td>
     </tr></tfoot>` : ''}
   </table>
@@ -66,12 +67,12 @@ function standingsTable(group, rows, showChallenge) {
   <caption>Group ${group}</caption>
   <thead><tr>
     <th scope="col">School</th><th scope="col">W–L</th><th scope="col">Games</th>
-    ${showChallenge ? h`<th scope="col">Challenge</th>` : ''}<th scope="col">Total</th>
+    ${showChallenge ? h`<th scope="col">Activities</th>` : ''}<th scope="col">Total</th>
   </tr></thead>
   <tbody>${rows.map((r) => h`<tr class="${r.place === 'qualified' || r.place === 'provisional' ? 'tournament-qualified' : r.place === 'tied' ? 'is-tied' : ''}" data-teams="${r.team.id}">
     <th scope="row"><span class="tournament-table-team">${teamMark(r.team)}<span>${r.team.name}${r.place ? h`<small>${PLACE_LABEL[r.place]}</small>` : ''}</span></span></th>
     <td>${r.won}–${r.lost}</td><td>${r.games}</td>
-    ${showChallenge ? h`<td>${r.challenge.toFixed(1)}</td>` : ''}<td><strong>${showChallenge ? r.total.toFixed(1) : r.total}</strong></td>
+    ${showChallenge ? h`<td>${fmtPoints(r.yard + r.bonus)}</td>` : ''}<td><strong>${fmtPoints(r.total)}</strong></td>
   </tr>`)}</tbody>
 </table>`;
 }
@@ -89,7 +90,7 @@ function champion(state) {
 
 /** The part of the public page that is swapped in place whenever a score changes. */
 export function publicPartial(state) {
-  const showChallenge = state.stations.length > 0;
+  const showChallenge = state.yardStarted;
   const groupRounds = [...new Set(state.showdowns.filter((s) => s.stage === 'group').map((s) => s.round))];
   const koWithTeams = state.knockout.filter((sd) => sd.a && sd.b);
   const anyResults = state.allMatches.some((m) => m.status !== 'scheduled');
@@ -114,7 +115,7 @@ ${champion(state)}
 <section id="standings" aria-labelledby="standings-h">
   <h2 id="standings-h">Group standings</h2>
   ${state.groupsSet
-    ? h`<p class="footnote">One point per game won${showChallenge ? ', plus Festival Challenge points' : ''}. Top two in each group reach the semifinals. Places are confirmed when the group stage ends.</p>
+    ? h`<p class="footnote">One point per game won, plus School Yard activity points${showChallenge ? ' as they come in' : ''} and the School Spirit bonus. Top two in each group reach the semifinals. Places are confirmed when the group matches and all activity results are in.</p>
       <div class="tournament-groups">${['A', 'B'].filter((g) => state.standings[g]).map((g) => standingsTable(g, state.standings[g], showChallenge))}</div>`
     : h`<p class="quiet-note">Groups are set at the live matchup draw on 25 November.</p>
       <ul class="school-chips" role="list">${state.teams.map((t) => h`<li>${teamMark(t)}<span>${t.name}</span></li>`)}</ul>`}
@@ -136,7 +137,7 @@ ${groupRounds.length ? h`<section id="matches" aria-labelledby="matches-h">
 
 ${koWithTeams.length ? h`<section id="knockout" aria-labelledby="knockout-h">
   <h2 id="knockout-h">Semifinals and final</h2>
-  <p>First pair to six games in each category, with a tiebreak at 5–5. Small numbers show tiebreak points.</p>
+  <p>The first school to win two categories wins. Each category is first to six games, with a tiebreak at 5–5. Small numbers show tiebreak points.</p>
   ${koWithTeams.map((sd) => h`<h3 class="ko-title">${showdownTitle(sd)}</h3><ul class="tournament-fixtures ko-fixtures" role="list">${fixtureCard(state, sd)}</ul>`)}
 </section>` : state.knockout.length ? h`<section id="knockout" aria-labelledby="knockout-h">
   <h2 id="knockout-h">Semifinals and final</h2>
@@ -147,7 +148,7 @@ ${koWithTeams.length ? h`<section id="knockout" aria-labelledby="knockout-h">
 
 function sponsorStrip() {
   return h`<section class="score-sponsors" aria-label="Event sponsors">
-      <div class="sponsor-unit sponsor-unit-gold"><span class="sponsor-role">Gold Sponsor</span><div class="gold-mark-pair" aria-label="JAPFA Food and TOKUSEN, one Gold partner"><img class="sponsor-japfa-logo" src="/assets/sponsors/japfa-food-navy.png" alt="JAPFA Food" width="120" height="36"><img class="sponsor-tokusen-logo" src="/assets/sponsors/tokusen-navy.png" alt="TOKUSEN" width="144" height="44"></div></div>
+      <div class="sponsor-unit sponsor-unit-gold"><span class="sponsor-role">Gold Sponsor</span><div class="gold-mark-pair" aria-label="JAPFA Food and TOKUSEN, one Gold partner"><img class="sponsor-japfa-logo" src="/assets/sponsors/japfa-food-navy.png" alt="JAPFA Food" width="120" height="36"><img class="sponsor-tokusen-logo" src="/assets/sponsors/tokusen-navy.svg" alt="TOKUSEN" width="144" height="44"></div></div>
       <div class="sponsor-unit sponsor-unit-silver"><span class="sponsor-role">Silver Sponsor</span><img class="sponsor-silver-logo" src="/assets/sponsors/sucor-sekuritas-navy.png" alt="Sucor Sekuritas" width="190" height="38"></div>
     </section>`;
 }
@@ -207,7 +208,7 @@ function tvCourt(state, court, live) {
       .sort((x, y) => x.sd.round - y.sd.round || String(x.sd.start_time || '').localeCompare(String(y.sd.start_time || '')) || x.id - y.id)[0];
     if (!next) return h`<article class="sb-court is-free"><header class="sb-court-head">${badge}<div class="sb-court-title"><b>${court}</b><span>No match right now</span></div></header><p class="sb-ghost" aria-hidden="true">${num}</p></article>`;
     return h`<article class="sb-court is-next">
-      <header class="sb-court-head">${badge}<div class="sb-court-title"><b>${court}</b><span>${SHORT_CAT[next.category]} doubles</span></div><span class="sb-chip">Up next${next.sd.start_time ? h` · ${next.sd.start_time}` : ''}</span></header>
+      <header class="sb-court-head">${badge}<div class="sb-court-title"><b>${court}</b><span>${SHORT_CAT[next.category]} doubles</span></div><span class="sb-chip">Next${next.sd.start_time ? h` · ${next.sd.start_time}` : ''}</span></header>
       <div class="sb-versus">
         <div class="sb-versus-team">${teamMark(next.sd.a)}<strong>${next.sd.a.name}</strong></div>
         <span class="sb-v">v</span>
@@ -232,11 +233,10 @@ function tvCourt(state, court, live) {
 
 function tvStandings(state, group) {
   const rows = state.standings[group] || [];
-  const showChallenge = state.stations.length > 0;
   return h`<table class="sb-table">
     <caption><span>Group ${group}</span></caption>
-    <thead><tr><th></th><th scope="col">School</th><th scope="col">Games</th><th scope="col">${showChallenge ? 'Total' : 'Points'}</th></tr></thead>
-    <tbody>${rows.map((r) => h`<tr class="${r.place === 'qualified' || r.place === 'provisional' ? 'is-q' : r.place === 'tied' ? 'is-tied' : ''}"><td class="sb-rank">${r.rank}</td><th scope="row"><span class="sb-name">${teamMark(r.team)}<span>${r.team.name}</span></span></th><td>${r.games}</td><td class="sb-total">${showChallenge ? r.total.toFixed(1) : r.total}</td></tr>`)}</tbody>
+    <thead><tr><th></th><th scope="col">School</th><th scope="col">Games</th><th scope="col">Points</th></tr></thead>
+    <tbody>${rows.map((r) => h`<tr class="${r.place === 'qualified' || r.place === 'provisional' ? 'is-q' : r.place === 'tied' ? 'is-tied' : ''}"><td class="sb-rank">${r.rank}</td><th scope="row"><span class="sb-name">${teamMark(r.team)}<span>${r.team.name}</span></span></th><td>${r.games}</td><td class="sb-total">${fmtPoints(r.total)}</td></tr>`)}</tbody>
   </table>`;
 }
 
@@ -286,9 +286,9 @@ export function tvPage(state, qrSvg, publicUrl) {
   </header>
   <div id="live-region" class="sb-body" data-src="/partial/tv">${tvPartial(state)}</div>
   <section class="sb-partners" aria-label="Event partners">
-    <div class="sb-partner sb-partner-gold"><span>Gold Sponsor</span><div class="gold-mark-pair" aria-label="JAPFA Food and TOKUSEN, one Gold partner"><img class="sb-japfa-logo" src="/assets/sponsors/japfa-food-white.png" alt="JAPFA Food" width="104" height="34"><img class="sb-tokusen-logo" src="/assets/sponsors/tokusen-white.png" alt="TOKUSEN" width="130" height="42"></div></div>
+    <div class="sb-partner sb-partner-gold"><span>Gold Sponsor</span><div class="gold-mark-pair" aria-label="JAPFA Food and TOKUSEN, one Gold partner"><img class="sb-japfa-logo" src="/assets/sponsors/japfa-food-white.png" alt="JAPFA Food" width="104" height="34"><img class="sb-tokusen-logo" src="/assets/sponsors/tokusen-white.svg" alt="TOKUSEN" width="130" height="42"></div></div>
     <div class="sb-partner sb-partner-silver"><span>Silver Sponsor</span><img src="/assets/sponsors/sucor-sekuritas-white.png" alt="Sucor Sekuritas" width="190" height="32"></div>
-    <div class="sb-partner sb-partner-media"><span>Media Partner</span><img src="/assets/sponsors/tatler-white.png" alt="Tatler" width="68" height="40"></div>
+    <div class="sb-partner sb-partner-media"><span>Media Partner</span><img src="/assets/sponsors/tatler-white.svg" alt="Tatler, Media Partner" width="94" height="50"></div>
   </section>
 </main>`;
   return layout({ title: 'TV scoreboard', body, bare: true, bodyClass: 'sb-page', scripts: ['/js/live.js'], styles: ['/css/tv.css', '/css/sponsors.css'] });

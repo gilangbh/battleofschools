@@ -73,6 +73,29 @@ if (!db.prepare('PRAGMA table_info(players)').all().some((c) => c.name === 'phot
 // Winner of a semifinal or final, set by an admin once the committee confirms it ('a' or 'b').
 if (!db.prepare('PRAGMA table_info(showdowns)').all().some((c) => c.name === 'winner')) db.exec('ALTER TABLE showdowns ADD COLUMN winner TEXT');
 
+// Registration identity, kept apart from the short name shown on scoreboards.
+for (const col of ['reg_id', 'full_name', 'jersey_name']) {
+  if (!db.prepare('PRAGMA table_info(players)').all().some((c) => c.name === col)) db.exec(`ALTER TABLE players ADD COLUMN ${col} TEXT`);
+}
+
+// School Yard activities. One official result per school, station and group showdown (slot 1 to 5), or slot 0 for
+// the single event-wide On run. The primary key is what stops a repeated submission becoming a second attempt.
+// Every write is also appended to activity_log, so a correction never erases what was first recorded.
+db.exec(`
+CREATE TABLE IF NOT EXISTS activity (
+  team_id TEXT NOT NULL REFERENCES teams(id), station TEXT NOT NULL, slot INTEGER NOT NULL,
+  score REAL NOT NULL, raw TEXT NOT NULL, by_user INTEGER, created_at INTEGER NOT NULL, updated_at INTEGER NOT NULL,
+  PRIMARY KEY (team_id, station, slot)
+);
+CREATE TABLE IF NOT EXISTS activity_log (
+  id INTEGER PRIMARY KEY, team_id TEXT NOT NULL, station TEXT NOT NULL, slot INTEGER NOT NULL,
+  action TEXT NOT NULL, score REAL, raw TEXT, by_user INTEGER, by_email TEXT, at INTEGER NOT NULL
+);
+CREATE TABLE IF NOT EXISTS bonus (
+  team_id TEXT PRIMARY KEY REFERENCES teams(id), points REAL NOT NULL, by_user INTEGER, at INTEGER NOT NULL
+);
+`);
+
 export const all = (sql, ...p) => db.prepare(sql).all(...p);
 export const get = (sql, ...p) => db.prepare(sql).get(...p);
 export const run = (sql, ...p) => db.prepare(sql).run(...p);

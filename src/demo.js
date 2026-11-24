@@ -22,13 +22,20 @@ export function loadDemo() {
 
   tx(() => {
     run('DELETE FROM tickets');
-    run('DELETE FROM challenge');
-    if (get('SELECT COUNT(*) AS n FROM stations').n === 0) {
-      ['Target Shooting', 'Smash Challenge'].forEach((name, i) => run('INSERT INTO stations (name, sort) VALUES (?, ?)', name, i));
-    }
-    const stations = all('SELECT id FROM stations');
-    for (const t of teams) for (const st of stations) {
-      run('INSERT INTO challenge (team_id, station_id, points) VALUES (?, ?, ?)', t.id, st.id, Math.round((6 + Math.random() * 5) * 10) / 10);
+    // School Yard results for the two finished rounds, so the standings show a mix of recorded and pending.
+    run('DELETE FROM activity');
+    run('DELETE FROM activity_log');
+    run('DELETE FROM bonus');
+    const yard = (team, station, slot, score) => run('INSERT INTO activity (team_id, station, slot, score, raw, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)', team, station, slot, score, '{"demo":true}', now, now);
+    for (const t of teams) {
+      for (const slot of [1, 2]) {
+        yard(t.id, 'pin', slot, pick([2, 3, 3, 4, 5]));
+        yard(t.id, 'satu', slot, pick([2, 2.5, 3, 3.5, 4.5]));
+        yard(t.id, 'accuracy', slot, pick([1.5, 2.5, 3.5, 5]));
+        yard(t.id, 'red_bull', slot, pick([0, 1, 1]));
+      }
+      if (Math.random() < 0.4) yard(t.id, 'on', 0, pick([2.5, 3, 3.5, 4]));
+      run('INSERT INTO bonus (team_id, points, at) VALUES (?, ?, ?)', t.id, 5, now);
     }
 
     const showdowns = all("SELECT * FROM showdowns WHERE stage = 'group' ORDER BY round, slot");

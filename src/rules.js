@@ -18,6 +18,31 @@ export function ticketBalance(tickets = []) {
 }
 export const MIN_APPEARANCES = 3;
 
+// Regular categories in rising order. Low Silver is stored as Silver.
+export const LEVEL_RANK = { lower_bronze: 1, bronze: 2, silver: 3 };
+
+/**
+ * Why the Gold Player may not come in for `out` in the original pair [a, b]; null when it is allowed.
+ * Organizer rule of 23 November 2026: Gold replaces only a highest-rated regular of the original pair, compared on
+ * committee-approved categories first, and must be the same gender as the player replaced. A category still under
+ * review or a missing gender cannot be assumed, so it is refused and goes to the committee.
+ */
+export function goldReplaceError(gold, a, b, out) {
+  if (!gold) return 'This school has no approved Gold Player.';
+  if (!a || !b || !out || (out.id !== a.id && out.id !== b.id)) return 'The Gold Player must replace one of the two players in this pair.';
+  for (const p of [a, b]) {
+    if (p.level_pending || !LEVEL_RANK[p.level]) return `${p.name}’s category is not committee-approved yet, so the highest-rated player of this pair cannot be checked. Refer it to the committee.`;
+  }
+  const top = Math.max(LEVEL_RANK[a.level], LEVEL_RANK[b.level]);
+  if (LEVEL_RANK[out.level] < top) {
+    const higher = out.id === a.id ? b : a;
+    return `The Gold Player may only replace the highest-rated player of the pair. That is ${higher.name}, not ${out.name}.`;
+  }
+  if (!gold.gender || !out.gender) return 'The Gold Player replaces a player of the same gender, and a gender is missing on record. Ask the organizer to set it.';
+  if (gold.gender !== out.gender) return `The Gold Player can only replace a player of the same gender, and ${out.name} is not.`;
+  return null;
+}
+
 export const isKnockout = (stage) => stage !== 'group';
 
 const isInt = (n) => Number.isInteger(n);
@@ -102,13 +127,13 @@ export function validateLineup(ctx) {
     const gold = players.find((p) => p.is_gold);
     const out = byId.get(goldOut);
     if (isKnockout(stage)) errors.push('Golden Tickets can only be used in the group stage.');
-    else if (!gold) errors.push('Your school has no approved Gold Player.');
-    else if (!out || (out.id !== a.id && out.id !== b.id)) errors.push('The Gold Player must replace one of the two players in this pair.');
     else {
-      if (goldUsedElsewhere >= GOLD_DEPLOYMENTS) errors.push(`Your school has already used its ${GOLD_DEPLOYMENTS} Gold Player deployments.`);
-      if (goldenPointHere) errors.push('Your school has already used a Golden Point in this match. The two tickets cannot be combined in one match.');
-      if (!gold.gender || !out.gender) errors.push('The Gold Player replaces a player of the same gender, and a gender is missing on record. Ask the organizer to set it.');
-      else if (gold.gender !== out.gender) errors.push(`The Gold Player can only replace a player of the same gender, and ${out.name} is not.`);
+      const why = goldReplaceError(gold, a, b, out);
+      if (why) errors.push(why);
+      else {
+        if (goldUsedElsewhere >= GOLD_DEPLOYMENTS) errors.push(`Your school has already used its ${GOLD_DEPLOYMENTS} Gold Player deployments.`);
+        if (goldenPointHere) errors.push('Your school has already used a Golden Point in this match. The two tickets cannot be combined in one match.');
+      }
     }
   }
   return errors;
@@ -135,23 +160,30 @@ export function showdownSummary(stage, matches) {
     if (w === 'b') s.catsB++;
   }
   s.complete = matches.length > 0 && s.done === matches.length;
-  // The winner of a semifinal or final is never worked out here. The committee has not decided whether
-  // categories won or total games decide it, so an admin confirms the winner and loadState copies it in.
+  // Semifinals and final: the first school to win two categories wins, so the third category is only needed
+  // at 1-1. Total games never decide it.
+  if (isKnockout(stage)) {
+    s.winner = s.catsA >= 2 ? 'a' : s.catsB >= 2 ? 'b' : null;
+    if (s.winner) s.complete = true;
+  }
   return s;
 }
 
 /**
- * Group standings. Total = padel games won in finished group matches + Festival Challenge points.
+ * Group standings. Total = padel games won in finished group matches + School Yard points + School Spirit bonus.
+ * extraByTeam maps a school to { yard, bonus, pending }: School Yard points recorded so far, the bonus (0 when
+ * not entered) and whether any of the school's activity results or its bonus is still missing.
  * The committee has not published a tiebreak, so schools level on total share a rank and are never
  * separated here. Each row gets a `place`:
- *   'qualified'   top two, group stage finished, no tie across the cut
+ *   'qualified'   top two, group matches and every school's activity results finished, no tie across the cut
  *   'provisional' currently top two, group stage still running
  *   'tied'        level on total with a school on the other side of the top-two cut
  */
-export function computeStandings(teams, showdowns, challengeByTeam) {
-  const rows = new Map(
-    teams.map((t) => [t.id, { team: t, played: 0, won: 0, lost: 0, games: 0, challenge: challengeByTeam.get(t.id) || 0, total: 0, place: null }]),
-  );
+export function computeStandings(teams, showdowns, extraByTeam = new Map()) {
+  const rows = new Map(teams.map((t) => {
+    const x = extraByTeam.get(t.id) || {};
+    return [t.id, { team: t, played: 0, won: 0, lost: 0, games: 0, yard: x.yard || 0, bonus: x.bonus || 0, pending: Boolean(x.pending), total: 0, place: null }];
+  }));
   let groupLeft = 0;
   for (const sd of showdowns) {
     if (sd.stage !== 'group') continue;
@@ -168,11 +200,9 @@ export function computeStandings(teams, showdowns, challengeByTeam) {
       else if (m.score_b > m.score_a) { rb.won++; ra.lost++; }
     }
   }
-  const round1 = (n) => Math.round(n * 10) / 10;
-  for (const row of rows.values()) {
-    row.challenge = round1(row.challenge);
-    row.total = round1(row.games + row.challenge);
-  }
+  // Totals are kept exact (only floating-point noise is removed), so two schools rank level only when they really are.
+  const exact = (n) => Math.round(n * 1e6) / 1e6;
+  for (const row of rows.values()) row.total = exact(row.games + row.yard + row.bonus);
   const sorted = [...rows.values()].sort((x, y) => y.total - x.total || x.team.name.localeCompare(y.team.name));
   const groups = {};
   for (const row of sorted) {
@@ -182,14 +212,15 @@ export function computeStandings(teams, showdowns, challengeByTeam) {
   const anyPlayed = sorted.some((row) => row.played > 0);
   for (const list of Object.values(groups)) {
     for (const row of list) row.rank = 1 + list.filter((o) => o.total > row.total).length;
+    const settled = groupLeft === 0 && list.every((row) => !row.pending);
     if (!anyPlayed || list.length < 3) {
-      if (anyPlayed) list.slice(0, 2).forEach((row) => { row.place = groupLeft === 0 ? 'qualified' : 'provisional'; });
+      if (anyPlayed) list.slice(0, 2).forEach((row) => { row.place = settled ? 'qualified' : 'provisional'; });
       continue;
     }
     const cutTied = list[1].total === list[2].total;
     for (const [i, row] of list.entries()) {
-      if (cutTied && row.total === list[1].total) row.place = 'tied';
-      else if (i < 2) row.place = groupLeft === 0 ? 'qualified' : 'provisional';
+      if (cutTied && row.total === list[1].total) row.place = settled ? 'tied' : i < 2 ? 'provisional' : null;
+      else if (i < 2) row.place = settled ? 'qualified' : 'provisional';
     }
   }
   return groups;

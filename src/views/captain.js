@@ -40,6 +40,7 @@ function lineupBlock(state, team, m, goldLeft, base) {
         <option value="p2"${goldSel === 'p2' ? raw(' selected') : ''}>${team.gold.name} ★ starts instead of second player</option>
       </select>` : ''}
       <button class="button small" type="submit">${mine ? 'Update' : 'Submit'}</button>
+      ${canGold ? h`<span class="footnote">The Gold Player may only replace the highest-rated player of the pair, and must be the same gender.</span>` : ''}
     </form>
     ${mine ? h`<form method="post" action="${base}/lineup/${m.id}/withdraw"><button class="link-button" type="submit">Withdraw</button></form>` : ''}
   </div>`;
