@@ -208,7 +208,7 @@ export function publicPage(state, user) {
 
 
 /** The two people on court for one side, with portraits. Null until both lineups are in. */
-function onCourt(state, m, side) {
+export function onCourt(state, m, side) {
   const l = m.lineup[side];
   if (!l || !m.revealed) return null;
   const team = side === 'a' ? m.sd.a : m.sd.b;
@@ -259,7 +259,7 @@ function tvCourt(state, court, live) {
   </article>`;
 }
 
-function tvStandings(state, group) {
+export function tvStandings(state, group) {
   const rows = state.standings[group] || [];
   return h`<table class="sb-table">
     <caption><span>Group ${group}</span></caption>
@@ -302,24 +302,29 @@ export function tvPartial(state) {
 </footer>`;
 }
 
-export function tvPage(state, qrSvg, publicUrl) {
+/** The shared TV frame: top bar with clock and QR code, the live region, and the sponsor rail. */
+export function tvFrame(state, qrSvg, publicUrl, { title, words, src, inner, bodyClass = '' }) {
   const shown = publicUrl.replace(/^https?:\/\//, '').replace(/\/$/, '');
   const body = h`
 <main class="sb sb-has-partners" id="main">
   <header class="sb-top">
     <img src="/assets/logo.svg" alt="Battle of Schools" class="sb-logo">
-    <div class="sb-title"><p>${state.settings.event_title} · ${state.settings.venue}</p><h1>Live <span>scoreboard</span></h1></div>
+    <div class="sb-title"><p>${state.settings.event_title} · ${state.settings.venue}</p><h1>${words[0]} <span>${words[1]}</span></h1></div>
     <div class="sb-now"><div class="sb-clock" id="clock" aria-hidden="true"></div><span class="conn sb-conn" id="conn" data-state="connecting">Connecting…</span></div>
     <div class="sb-qr"><div class="sb-qr-code">${raw(qrSvg)}</div><div class="sb-qr-copy"><strong>Scores on your phone</strong><span>Scan, or open</span><b>${shown}</b></div></div>
   </header>
-  <div id="live-region" class="sb-body" data-src="/partial/tv">${tvPartial(state)}</div>
+  <div id="live-region" class="sb-body ${bodyClass}" data-src="${src}">${inner}</div>
   <section class="sb-partners" aria-label="Event partners">
     <div class="sb-partner sb-partner-gold"><span>Gold Sponsor</span><div class="gold-mark-pair" aria-label="JAPFA Food and TOKUSEN, one Gold partner"><img class="sb-japfa-logo" src="/assets/sponsors/japfa-food-white.png" alt="JAPFA Food" width="104" height="34"><img class="sb-tokusen-logo" src="/assets/sponsors/tokusen-white.svg" alt="TOKUSEN" width="130" height="42"></div></div>
     <div class="sb-partner sb-partner-silver"><span>Silver Sponsor</span><img src="/assets/sponsors/sucor-sekuritas-white.png" alt="Sucor Sekuritas" width="190" height="32"></div>
     <div class="sb-partner sb-partner-media"><span>Media Partner</span><img src="/assets/sponsors/tatler-white.svg" alt="Tatler, Media Partner" width="94" height="50"></div>
   </section>
 </main>`;
-  return layout({ title: 'TV scoreboard', body, bare: true, bodyClass: 'sb-page', scripts: ['/js/live.js'], styles: ['/css/tv.css', '/css/sponsors.css'] });
+  return layout({ title, body, bare: true, bodyClass: 'sb-page', scripts: ['/js/live.js'], styles: ['/css/tv.css', '/css/sponsors.css', '/css/tv-stages.css'] });
+}
+
+export function tvPage(state, qrSvg, publicUrl) {
+  return tvFrame(state, qrSvg, publicUrl, { title: 'TV scoreboard', words: ['Live', 'scoreboard'], src: '/partial/tv', inner: tvPartial(state) });
 }
 
 // ---------- Login ----------

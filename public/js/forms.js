@@ -141,3 +141,99 @@ document.addEventListener('click', (e) => {
   input.focus();
   input.select();
 });
+
+// Admin players: the small portrait opens a card to upload or remove the photo.
+(() => {
+  const closeAll = (except) => document.querySelectorAll('.ph-pop').forEach((pop) => {
+    if (pop === except) return;
+    pop.hidden = true;
+    pop.parentNode.querySelector('[data-photo-open]').setAttribute('aria-expanded', 'false');
+  });
+  document.addEventListener('click', (e) => {
+    const open = e.target.closest('[data-photo-open]');
+    if (open) {
+      const pop = open.parentNode.querySelector('.ph-pop');
+      closeAll(pop);
+      pop.hidden = !pop.hidden;
+      open.setAttribute('aria-expanded', String(!pop.hidden));
+      return;
+    }
+    if (!e.target.closest('.ph-pop')) closeAll(null);
+  });
+  document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeAll(null); });
+
+  // Shrinks any picture to a 480 x 600 portrait, keeping the top of the frame where the face usually is.
+  const shrink = (file) => new Promise((resolve, reject) => {
+    const img = new Image();
+    const url = URL.createObjectURL(file);
+    img.onload = () => {
+      const W = 480; const H = 600;
+      const scale = Math.max(W / img.naturalWidth, H / img.naturalHeight);
+      const w = img.naturalWidth * scale; const h = img.naturalHeight * scale;
+      const c = document.createElement('canvas');
+      c.width = W; c.height = H;
+      c.getContext('2d').drawImage(img, (W - w) / 2, (H - h) * 0.2, w, h);
+      URL.revokeObjectURL(url);
+      resolve(c.toDataURL('image/jpeg', 0.84));
+    };
+    img.onerror = () => { URL.revokeObjectURL(url); reject(new Error('unreadable')); };
+    img.src = url;
+  });
+
+  const FACE = '<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><circle cx="12" cy="9" r="4.2"/><path d="M3.5 22c.6-5 4-7.5 8.5-7.5s7.9 2.5 8.5 7.5Z"/></svg>';
+  const paint = (box, src) => {
+    const btn = box.querySelector('[data-photo-open]');
+    const big = box.querySelector('.ph-big');
+    btn.classList.toggle('is-empty', !src);
+    big.classList.toggle('is-empty', !src);
+    btn.innerHTML = src ? '<img src="' + src + '" alt="" width="48" height="60">' : FACE;
+    big.innerHTML = src ? '<img src="' + src + '" alt="" width="480" height="600">' : FACE;
+    box.querySelector('[data-photo-remove]').hidden = !src;
+    box.querySelector('.ph-upload').firstChild.textContent = src ? 'Replace photo' : 'Upload photo';
+  };
+  const send = async (box, body, working) => {
+    const note = box.querySelector('[data-photo-note]');
+    note.classList.remove('is-error');
+    note.textContent = working;
+    box.classList.add('is-busy');
+    try {
+      const res = await fetch('/admin/player/' + box.dataset.photo + '/photo', { method: 'POST', headers: { 'Content-Type': 'application/json', Accept: 'application/json' }, body: JSON.stringify(body) });
+      const data = await res.json();
+      if (!data.ok) throw new Error(data.text);
+      paint(box, data.photo);
+      note.textContent = data.text + ' The scoreboards use it straight away.';
+    } catch (err) {
+      note.classList.add('is-error');
+      note.textContent = err && err.message && err.message !== 'Failed to fetch' ? err.message : 'Not saved. Check the connection and try again.';
+    }
+    box.classList.remove('is-busy');
+  };
+  document.addEventListener('change', async (e) => {
+    const input = e.target.closest('[data-photo-file]');
+    if (!input || !input.files[0]) return;
+    const box = input.closest('[data-photo]');
+    try {
+      const image = await shrink(input.files[0]);
+      await send(box, { image }, 'Uploading…');
+    } catch {
+      const note = box.querySelector('[data-photo-note]');
+      note.classList.add('is-error');
+      note.textContent = 'That file is not a picture this browser can read. Try a JPEG or PNG.';
+    }
+    input.value = '';
+  });
+  document.addEventListener('click', (e) => {
+    const btn = e.target.closest('[data-photo-remove]');
+    if (!btn) return;
+    const box = btn.closest('[data-photo]');
+    if (btn.dataset.sure !== '1') {
+      btn.dataset.sure = '1';
+      btn.textContent = 'Tap again to remove';
+      setTimeout(() => { btn.dataset.sure = ''; btn.textContent = 'Remove photo'; }, 4000);
+      return;
+    }
+    btn.dataset.sure = '';
+    btn.textContent = 'Remove photo';
+    send(box, { remove: true }, 'Removing…');
+  });
+})();

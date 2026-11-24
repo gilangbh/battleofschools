@@ -1,0 +1,198 @@
+/* Knockout bracket and final summary TV screens. Built on the tokens and frame of tv.css; sized in vh for a 16:9 TV. */
+
+/* ---------- Knockout bracket ---------- */
+.sb-body.kb-body{grid-template-columns:minmax(0,1fr)}
+.kb{min-height:0;display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.22fr) minmax(0,1fr);gap:1.6vh;align-items:stretch}
+.kb-empty{font-size:2.6vh;opacity:.8;align-self:center}
+.kb-centre{min-height:0;display:grid;grid-template-rows:auto minmax(0,1fr);gap:1.2vh}
+
+.kb-tie{position:relative;min-height:0;display:grid;grid-template-rows:auto auto auto minmax(0,1fr);background:var(--panel-2);border:.15vh solid var(--edge);overflow:hidden}
+.kb-tie.is-live{border-color:var(--lime);box-shadow:0 0 0 .15vh var(--lime),0 1.5vh 4vh #0008;background:linear-gradient(165deg,var(--panel),var(--panel-2) 65%)}
+.kb-tie.is-final{border-color:var(--lime)}
+.kb-head{display:flex;align-items:center;gap:1.2vh;padding:.9vh 1.2vh;background:#f7f3e80f}
+.kb-head div{flex:1;min-width:0;display:flex;flex-direction:column;line-height:1.15}
+.kb-head b{font-size:2.3vh;font-weight:900;letter-spacing:-.03em;text-transform:uppercase}
+.kb-head span:not(.sb-chip){font-size:1.3vh;font-weight:600;letter-spacing:.14em;text-transform:uppercase;opacity:.7}
+.kb-tie.is-final .kb-head{background:var(--lime);color:var(--navy)}
+.kb-tie.is-final .kb-head .sb-chip:not(.is-live){border-color:var(--navy)}
+.kb-tie.is-final .kb-head span:not(.sb-chip){opacity:.85}
+
+.kb-schools{display:grid;gap:.5vh;padding:1.2vh 1.4vh .4vh;position:relative}
+.kb-school{display:flex;align-items:center;gap:1.4vh;padding:.7vh 1vh;background:#f7f3e80a;border-left:.5vh solid transparent}
+.kb-school .tournament-team-mark{--tournament-mark-size:7.4vh;--tournament-mark-padding:.5vh;outline:.15vh solid var(--edge);overflow:hidden}
+.kb-school-name{flex:1;min-width:0;display:flex;flex-direction:column;line-height:1.12}
+.kb-school-name small{font-size:1.2vh;font-weight:600;letter-spacing:.14em;text-transform:uppercase;opacity:.65}
+.kb-school-name strong{font-size:2.7vh;font-weight:900;letter-spacing:-.04em;text-wrap:balance}
+.kb-school-name em{font-style:normal;align-self:flex-start;margin-top:.4vh;font-size:1.15vh;font-weight:900;letter-spacing:.14em;text-transform:uppercase;background:var(--lime);color:var(--navy);padding:.2vh .7vh}
+.kb-cats-won{font-size:7vh;font-weight:900;line-height:1;letter-spacing:-.05em;font-variant-numeric:tabular-nums;min-width:1.1em;text-align:right}
+.kb-school.is-w{border-left-color:var(--lime);background:#c1d05224}
+.kb-school.is-w .kb-cats-won{color:var(--lime)}
+.kb-school.is-l{opacity:.6}
+.kb-v{position:absolute;left:50%;top:50%;transform:translate(-50%,-38%) rotate(-6deg);font-weight:900;font-style:italic;font-size:2vh;color:var(--navy);background:var(--lime);padding:0 .8vh;line-height:1.5}
+.kb-rule{padding:0 1.4vh .6vh;font-size:1.15vh;font-weight:600;letter-spacing:.16em;text-transform:uppercase;opacity:.55;text-align:right}
+.kb-tie.is-final .kb-school .tournament-team-mark{--tournament-mark-size:9vh}
+.kb-tie.is-final .kb-school-name strong{font-size:3.3vh}
+.kb-tie.is-final .kb-cats-won{font-size:8.4vh}
+
+.kb-catlist{min-height:0;display:grid;grid-auto-rows:minmax(0,1fr);border-top:.15vh solid var(--edge)}
+.kb-wait{align-self:center;text-align:center;font-size:1.9vh;opacity:.7;padding:2vh}
+.kb-cat{min-height:0;display:grid;grid-template-columns:minmax(0,1fr) auto minmax(0,1fr);align-items:center;gap:1vh;padding:.5vh 1.2vh}
+.kb-cat + .kb-cat{border-top:.15vh solid var(--edge)}
+.kb-cat.is-live{background:#c1d0521f}
+.kb-cat.is-scheduled{opacity:.75}
+.kb-cat-mid{display:flex;flex-direction:column;align-items:center;gap:.4vh;min-width:9vh}
+.kb-cat-mid span{font-size:1.5vh;font-weight:900;letter-spacing:.1em;text-transform:uppercase}
+.kb-cat-mid i{font-style:normal;font-size:1.1vh;font-weight:600;letter-spacing:.12em;text-transform:uppercase;opacity:.7}
+.kb-cat-mid i.sb-chip{opacity:1;font-size:1.1vh;padding:.3vh .7vh}
+.kb-cat-side{min-width:0;display:grid;grid-template-columns:auto minmax(0,1fr);grid-template-areas:"faces score" "names names";align-items:center;gap:.3vh 1vh}
+.kb-cat-side.is-b{grid-template-columns:minmax(0,1fr) auto;grid-template-areas:"score faces" "names names"}
+.kb-faces{grid-area:faces;display:flex}
+.kb-face{width:4.6vh;height:5.4vh;overflow:hidden;background:var(--panel);border:.15vh solid var(--edge);display:grid;place-items:center}
+.kb-face + .kb-face{margin-left:.4vh}
+.kb-face img{width:100%;height:100%;object-fit:cover;object-position:50% 15%}
+.kb-face .tournament-team-mark{--tournament-mark-size:3.4vh;background:transparent}
+.kb-face.is-gold{border-color:var(--lime)}
+.kb-names{grid-area:names;font-size:1.35vh;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;opacity:.85}
+.kb-cat-side.is-b .kb-names{text-align:right}
+.kb-cat-score{grid-area:score;font-size:4.6vh;font-weight:900;line-height:1;letter-spacing:-.04em;font-variant-numeric:tabular-nums;text-align:right;opacity:.7}
+.kb-cat-side.is-b .kb-cat-score{text-align:left}
+.kb-cat-score sup{font-size:.4em;font-weight:600;margin-left:.2vh;vertical-align:top}
+.kb-cat-side.is-w .kb-cat-score{color:var(--lime);opacity:1}
+.kb-cat.is-live .kb-cat-score{opacity:1}
+.kb-tie.is-final .kb-face{width:5.2vh;height:6.2vh}
+.kb-tie.is-final .kb-cat-score{font-size:5.4vh}
+.kb-tie.is-final .kb-names{font-size:1.5vh}
+
+.kb-champ,.kb-road{display:flex;align-items:center;gap:1.6vh;padding:1.1vh 1.6vh;background:var(--lime);color:var(--navy)}
+.kb-road{background:transparent;color:var(--cream);border:.15vh dashed var(--edge)}
+.kb-champ .tournament-sport-mark svg,.kb-road .tournament-sport-mark svg{width:4.6vh;height:4.6vh}
+.kb-champ div,.kb-road div{flex:1;min-width:0;display:flex;flex-direction:column;line-height:1.1}
+.kb-champ small,.kb-road small{font-size:1.3vh;font-weight:600;letter-spacing:.16em;text-transform:uppercase}
+.kb-champ strong{font-size:4vh;font-weight:900;letter-spacing:-.05em;text-transform:uppercase}
+.kb-road strong{font-size:2.6vh;font-weight:900;letter-spacing:-.04em}
+.kb-champ .tournament-team-mark{--tournament-mark-size:7vh;--tournament-mark-padding:.4vh}
+.kb [data-k].is-changed{animation:sb-pop .9s ease-out}
+@keyframes sb-pop{0%{transform:scale(1.5);color:#fff}100%{transform:scale(1)}}
+
+/* ---------- Final summary ---------- */
+.sb-body.sm-body{grid-template-columns:minmax(0,1fr);grid-template-rows:minmax(0,1fr);padding-bottom:1.4vh}
+.sm{min-height:0;display:grid;grid-template-columns:minmax(0,1.35fr) minmax(0,1.1fr) 40vh;gap:1.6vh}
+.sm.has-secret{grid-template-columns:minmax(0,1.3fr) minmax(0,1fr) minmax(0,1fr) 33vh}
+.sm-col{min-height:0;display:flex;flex-direction:column;gap:1.3vh;overflow:hidden}
+
+.sm-champ{position:relative;display:grid;grid-template-columns:auto minmax(0,1fr);align-items:center;gap:1.4vh 2.2vh;padding:2vh 2.2vh;background:var(--lime);color:var(--navy);
+  background-image:repeating-linear-gradient(135deg,transparent 0 4vh,#0d2b5510 4vh 4.3vh)}
+.sm-champ-crest .tournament-team-mark{--tournament-mark-size:17vh;--tournament-mark-padding:1vh;box-shadow:.8vh .8vh 0 #0d2b5540}
+.sm-champ-label{display:flex;align-items:center;gap:.8vh;font-size:1.6vh;font-weight:900;letter-spacing:.18em;text-transform:uppercase}
+.sm-champ-label svg{width:3vh;height:3vh}
+.sm-champ-text{min-width:0;display:flex;flex-direction:column;gap:.4vh}
+.sm-champ-text strong{font-size:6.2vh;font-weight:900;letter-spacing:-.06em;line-height:.98;text-transform:uppercase;text-wrap:balance}
+.sm-champ-text small{font-size:1.7vh;font-weight:600}
+.sm-second{grid-column:1/-1;display:flex;align-items:center;gap:1.2vh;background:var(--navy);color:var(--cream);padding:.8vh 1.2vh}
+.sm-second .tournament-team-mark{--tournament-mark-size:4.6vh;outline:.15vh solid var(--edge)}
+.sm-second div{display:flex;flex-direction:column;line-height:1.15}
+.sm-second small{font-size:1.2vh;font-weight:600;letter-spacing:.16em;text-transform:uppercase;color:var(--lime)}
+.sm-second b{font-size:2.4vh;font-weight:900;letter-spacing:-.03em}
+.sm-champ.is-open{grid-template-columns:1fr;background:transparent;color:var(--cream);border:.15vh dashed var(--edge)}
+.sm.has-secret .sm-champ-crest .tournament-team-mark{--tournament-mark-size:13vh}
+.sm.has-secret .sm-champ-text strong{font-size:4.8vh}
+
+.sm-kos{flex:1;min-height:0;display:grid;grid-auto-rows:minmax(0,1fr);gap:1vh}
+.sm-ko{min-height:0;background:var(--panel-2);border:.15vh solid var(--edge);padding:.7vh 1.2vh;display:flex;flex-direction:column;justify-content:center;gap:.3vh}
+.sm-ko.is-final{border-color:var(--lime)}
+.sm-ko-title{display:flex;justify-content:space-between;align-items:baseline;font-size:1.25vh;font-weight:600;letter-spacing:.14em;text-transform:uppercase}
+.sm-ko-title b{color:var(--lime);font-weight:900}
+.sm-ko-title span{opacity:.55;margin-right:5.2vh}
+.sm-ko-team{display:flex;align-items:center;gap:1vh;font-size:2.1vh;font-weight:600;opacity:.75}
+.sm-ko-team > span:nth-child(2){flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.sm-ko-team .tournament-team-mark{--tournament-mark-size:3.4vh}
+.sm-ko-cats{display:flex;gap:.5vh;font-variant-numeric:tabular-nums}
+.sm-ko-cats i{font-style:normal;width:3vh;text-align:center;font-size:1.8vh;background:#f7f3e80f;line-height:1.6}
+.sm-ko-cats i.is-w{background:var(--cream);color:var(--navy);font-weight:900}
+.sm-ko-team b{width:3.8vh;text-align:right;font-size:3vh;font-weight:900;line-height:1}
+.sm-ko-team.is-w{opacity:1}
+.sm-ko-team.is-w b{color:var(--lime)}
+
+.sm-tiles{display:grid;grid-auto-flow:column;grid-auto-columns:minmax(0,1fr);gap:1vh}
+.sm-tiles div{background:#f7f3e80f;border:.15vh solid var(--edge);padding:.9vh 1.2vh;display:flex;flex-direction:column;gap:.2vh;min-width:0}
+.sm-tiles b{font-size:3.4vh;font-weight:900;line-height:1;letter-spacing:-.04em;font-variant-numeric:tabular-nums}
+.sm-tiles span{font-size:1.15vh;font-weight:600;letter-spacing:.12em;text-transform:uppercase;opacity:.7;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+
+.sm-standings .sb-table{flex:1}
+
+.sm-players{width:100%;flex:1;border-collapse:collapse;table-layout:fixed;background:var(--panel-2);border:.15vh solid var(--edge);font-variant-numeric:tabular-nums}
+.sm-players caption{text-align:left;padding:0}
+.sm-players caption span{display:inline-block;background:var(--cream);color:var(--navy);font-size:1.9vh;font-weight:900;letter-spacing:-.02em;line-height:1;padding:.7vh 1.2vh;text-transform:uppercase}
+.sm-players td,.sm-players th{border-top:.15vh solid var(--edge);padding:0 1vh;height:3.25vh;font-size:1.7vh;text-align:left}
+.sm-players tr:first-child td,.sm-players tr:first-child th{border-top:0}
+.sm-pos{width:3.6vh;text-align:center!important;font-weight:900;padding:0!important}
+.sm-players tr:nth-child(-n+3) .sm-pos{background:var(--lime);color:var(--navy)}
+.sm-player{display:flex;align-items:center;gap:.9vh;min-width:0}
+.sm-face{width:2.4vh;height:2.8vh;flex:none;overflow:hidden;background:var(--panel);display:grid;place-items:center}
+.sm-face img{width:100%;height:100%;object-fit:cover;object-position:50% 15%}
+.sm-face .tournament-team-mark{--tournament-mark-size:2.2vh;background:transparent}
+.sm-player > span:last-child{min-width:0;display:flex;align-items:baseline;gap:.8vh;white-space:nowrap;overflow:hidden}
+.sm-player b{font-weight:600;overflow:hidden;text-overflow:ellipsis}
+.sm-player small{font-size:1.1vh;font-weight:600;letter-spacing:.06em;text-transform:uppercase;opacity:.55;overflow:hidden;text-overflow:ellipsis}
+.sm-num{width:9vh;text-align:right!important;font-weight:900;font-size:2.1vh!important}
+.sm-num small{font-size:1vh;font-weight:600;letter-spacing:.1em;text-transform:uppercase;opacity:.6;margin-left:.5vh}
+.sm-none{font-size:1.6vh;opacity:.7;height:auto!important;padding:1.4vh!important}
+
+.sm-feed{background:var(--cream);color:var(--navy);gap:0}
+.sm-feed-label{flex:none;background:var(--red);color:#fff;font-size:1.5vh;font-weight:900;letter-spacing:.14em;text-transform:uppercase;padding:1.1vh 1.4vh;clip-path:polygon(0 0,100% 0,100% calc(100% - 1.2vh),0 100%);padding-bottom:1.9vh}
+.sm-feed-track{flex:1;min-height:0;overflow:hidden;-webkit-mask-image:linear-gradient(#000 85%,transparent);mask-image:linear-gradient(#000 85%,transparent)}
+.sm-feed-items.is-moving{animation:sm-roll calc(var(--n) * 4.5s) linear infinite}
+@keyframes sm-roll{to{transform:translateY(-50%)}}
+.sm-feed-item{padding:1vh 1.4vh 1.1vh;border-bottom:.15vh solid #0d2b5526}
+.sm-feed-round{font-size:1.1vh;font-weight:600;letter-spacing:.14em;text-transform:uppercase;opacity:.6}
+.sm-feed-teams{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:1vh;margin:.4vh 0 .5vh!important}
+.sm-feed-teams span{display:flex;align-items:center;gap:.7vh;font-size:1.55vh;font-weight:600;line-height:1.15;min-width:0}
+.sm-feed-teams span:last-child{flex-direction:row-reverse;text-align:right}
+.sm-feed-teams span.is-w{font-weight:900}
+.sm-feed-teams .tournament-team-mark{--tournament-mark-size:2.8vh}
+.sm-feed-score{display:grid;grid-template-columns:minmax(0,1fr) auto minmax(0,1fr);align-items:center;gap:1vh;font-variant-numeric:tabular-nums;line-height:1.35}
+.sm-feed-score b{font-size:1.9vh;font-weight:600;opacity:.6;padding-left:3.5vh}
+.sm-feed-score b:last-child{text-align:right;padding:0 3.5vh 0 0}
+.sm-feed-score b.is-w{font-weight:900;opacity:1}
+.sm-feed-score em{font-style:normal;font-size:1.05vh;font-weight:600;letter-spacing:.12em;text-transform:uppercase;background:var(--navy);color:var(--cream);padding:.15vh .7vh}
+.sm-feed-none{padding:1.4vh;font-size:1.7vh}
+
+@media (prefers-reduced-motion:reduce){.sm-feed-items.is-moving,.kb [data-k].is-changed{animation:none}}
+@media (max-aspect-ratio:1/1){
+  .sb-page{overflow:auto}
+  .kb,.sm,.sm.has-secret{grid-template-columns:1fr}
+  .kb-catlist{grid-auto-rows:auto}
+  .sm-col{overflow:visible}
+  .sm-feed-track{max-height:60vh}
+}
+
+/* Refinements after the first look */
+.kb-face{width:6.6vh;height:7.9vh}
+.kb-tie.is-final .kb-face{width:7.4vh;height:8.9vh}
+.kb-face .tournament-team-mark{--tournament-mark-size:4.6vh}
+.kb-names{font-size:1.6vh}
+.kb-tie.is-final .kb-names{font-size:1.75vh}
+.kb-cat-score{font-size:6vh}
+.kb-tie.is-final .kb-cat-score{font-size:7vh}
+.kb-cat.is-scheduled .kb-cat-score{font-size:3vh;opacity:.35}
+.kb-cat-mid span{font-size:1.7vh}
+.kb-champ .tournament-sport-mark,.kb-road .tournament-sport-mark{flex:none;display:grid;place-items:center;width:5vh;height:5vh}
+.kb-school .tournament-team-mark > span,.sm-ko-team .tournament-team-mark > span{display:grid;place-items:center;font-weight:900;font-size:3vh;opacity:.5}
+.sm-ko-team .tournament-team-mark > span{font-size:1.8vh}
+.kb-cats-won.is-none{opacity:.3;font-size:4vh}
+.kb-tie.is-final .kb-face{width:5.4vh;height:6.5vh}
+.kb-tie.is-final .kb-cat-score{font-size:5.8vh}
+.kb-tie.is-final .kb-names{font-size:1.5vh}
+.kb-tie.is-final .kb-cat{padding-block:.3vh}
+.sm-champ-label .tournament-sport-mark{flex:none;display:grid;place-items:center;width:3.2vh;height:3.2vh}
+.sm-players{line-height:1.15}
+.sm-players td,.sm-players th{height:3.1vh;padding-block:0}
+.sm-face{width:2.2vh;height:2.6vh}
+.sm-num{font-size:1.9vh!important;white-space:nowrap}
+.sm-player b{flex:none;max-width:62%}
+.sm-player small{flex:1;min-width:0}
+.sm-standings .sb-table tbody th{min-width:0}
+.sm-standings .sb-name > span:last-child{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}
+.sm.has-secret .sm-standings .sb-table td,.sm.has-secret .sm-standings .sb-table tbody th{font-size:1.9vh}
+.sm-tiles span{white-space:normal;line-height:1.25}
+.sm.has-secret .sm-standings .sb-name > span:last-child{white-space:normal;font-size:1.7vh;line-height:1.12}

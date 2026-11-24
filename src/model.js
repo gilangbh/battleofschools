@@ -228,14 +228,19 @@ export function fillKnockout() {
   return notes;
 }
 
-export function resetResults() {
+/** Removes every score. Lineups with their tickets, and School Yard results with the bonus, go only when asked. */
+export function resetResults({ lineups = true, yard = true } = {}) {
   tx(() => {
-    run('DELETE FROM tickets');
-    run('DELETE FROM lineups');
     run("UPDATE matches SET status = 'scheduled', score_a = NULL, score_b = NULL, tb_a = NULL, tb_b = NULL, started_at = NULL, finished_at = NULL");
-    run('DELETE FROM activity');
-    run('DELETE FROM activity_log');
-    run('DELETE FROM bonus');
-    run("UPDATE showdowns SET team_a = NULL, team_b = NULL WHERE stage != 'group'");
+    if (lineups) {
+      run('DELETE FROM tickets');
+      run('DELETE FROM lineups');
+      run("UPDATE showdowns SET team_a = NULL, team_b = NULL WHERE stage != 'group'");
+    }
+    if (yard) {
+      run('DELETE FROM activity');
+      run('DELETE FROM activity_log');
+      run('DELETE FROM bonus');
+    }
   });
 }

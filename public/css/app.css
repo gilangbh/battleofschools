@@ -474,3 +474,39 @@ tr.is-tied small{color:#b4291d}
 @media(max-width:700px){.yard-row{grid-template-columns:1fr}.yard-entry.dm-panel{grid-column:1}.yf,.yf.is-wide{width:calc(50% - .35rem)}.yf-shots{width:100%}.yf-shots .yf{width:auto;flex:1}}
 .name-cell{flex-wrap:wrap}
 .name-full{flex-basis:100%;order:3}
+
+/* ---------- Admin: player photos, reset, TV links ---------- */
+.ph{position:relative;flex:none}
+.ph-btn{display:block;width:2.6rem;height:3.25rem;padding:0;border:1px solid var(--line);background:#14305914;color:#91a0b0;overflow:hidden;cursor:pointer;transition:transform .12s,box-shadow .12s}
+.ph-btn img{display:block;width:100%;height:100%;object-fit:cover;object-position:50% 15%}
+.ph-btn svg{width:100%;height:100%;padding:.35rem .3rem 0}
+.ph-btn.is-empty{border-style:dashed;border-color:#91a0b0}
+.ph-btn:hover,.ph-btn[aria-expanded=true]{transform:scale(1.06);box-shadow:0 0 0 2px var(--navy)}
+.ph-pop{position:absolute;z-index:25;left:0;top:calc(100% + .5rem);display:flex;gap:.9rem;width:21rem;max-width:calc(100vw - 2rem);background:var(--cream);border:1px solid var(--navy);box-shadow:0 .8rem 2rem #0d2b5540;padding:.8rem}
+.ph-pop::before{content:"";position:absolute;left:.9rem;top:-.45rem;width:.8rem;height:.8rem;background:var(--cream);border-left:1px solid var(--navy);border-top:1px solid var(--navy);transform:rotate(45deg)}
+.ph-big{flex:none;width:7.5rem;aspect-ratio:4/5;background:var(--navy);color:#f7f3e866;overflow:hidden;display:block}
+.ph-big img{display:block;width:100%;height:100%;object-fit:cover;object-position:50% 15%}
+.ph-big svg{width:100%;height:100%;padding:1rem .8rem 0}
+.ph-side{flex:1;min-width:0;display:flex;flex-direction:column;align-items:stretch;gap:.45rem}
+.ph-side b{font-size:1rem;line-height:1.2;overflow-wrap:anywhere}
+.ph-side .button{min-height:40px;padding:8px 12px;justify-content:center;cursor:pointer}
+.ph-side small{font-size:.72rem;line-height:1.4;color:#4d5e74}
+.ph-side small.is-error{color:#b4291d;font-weight:600}
+.ph.is-busy .ph-big{opacity:.5}
+.roster-table .table-scroll,.roster-table{overflow:visible}
+.name-cell{position:relative}
+.name-cell .ph{margin-right:.35rem}
+.reset-panel{max-width:38rem;margin-top:.8rem;border-left:.3rem solid var(--red)}
+.reset-panel .panel-title{font-weight:900;margin:0}
+.tick-line{display:flex;align-items:flex-start;gap:.6rem;margin:0;font-weight:400;font-size:.92rem}
+.tick-line input{flex:none;margin-top:.15rem}
+.reset-confirm{display:flex;flex-direction:column;gap:.3rem;font-weight:600;font-size:.85rem;max-width:16rem}
+.reset-confirm input{text-transform:uppercase;letter-spacing:.2em;font-weight:900}
+.button.danger{background:var(--red);border-color:var(--red);color:#fff}
+.tv-links{list-style:none;margin:0;padding:0;display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,15rem),1fr));gap:.6rem}
+.tv-links li{border:1px solid var(--line);border-top:.3rem solid var(--navy);padding:.8rem .9rem;display:flex;flex-direction:column;gap:.3rem}
+.tv-links a{font-weight:900;font-size:1.05rem;letter-spacing:-.03em;text-decoration:none}
+.tv-links a::after{content:" ↗"}
+.tv-links span{font-size:.82rem;color:#4d5e74;line-height:1.45}
+.table-scroll:has(.roster-table){overflow:visible}
+@media (max-width:900px){.table-scroll:has(.roster-table){overflow-x:auto}.ph-pop{position:fixed;left:1rem;right:1rem;bottom:1rem;top:auto;width:auto;max-width:none}.ph-pop::before{display:none}}

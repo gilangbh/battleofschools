@@ -1,5 +1,6 @@
 import express from 'express';
 import os from 'node:os';
+import fs from 'node:fs';
 import path from 'node:path';
 import QRCode from 'qrcode';
 import { all, get, run, tx, getSetting, setSetting } from './src/db.js';
@@ -16,6 +17,7 @@ import {
 } from './src/rules.js';
 import { STATIONS, FIELDS, slotsFor, isBlank, readAttempt, fieldsFromRaw, personKey, BONUS_MAX, fmtPoints } from './src/activity.js';
 import { publicPage, publicPartial, tvPage, tvPartial, loginPage, confirmLoginPage, holdingPage } from './src/views/public.js';
+import { knockoutPage, knockoutPartial, summaryPage, summaryPartial } from './src/views/tv-stages.js';
 import { captainPage } from './src/views/captain.js';
 import { deskPage, deskShowdownPage } from './src/views/desk.js';
 import { activityPage } from './src/views/activity.js';
@@ -26,6 +28,10 @@ const app = express();
 app.set('trust proxy', 1);
 app.disable('x-powered-by');
 app.use(express.urlencoded({ extended: false, limit: '200kb', parameterLimit: 5000 }));
+// Portraits uploaded by an admin live with the data (so they survive a deploy) and are looked up first.
+const PHOTO_DIR = path.join(process.env.DATA_DIR || path.join(process.cwd(), 'data'), 'players');
+fs.mkdirSync(PHOTO_DIR, { recursive: true });
+app.use('/assets/players', express.static(PHOTO_DIR, { maxAge: isProd ? '1h' : 0 }));
 app.use(express.static(path.join(process.cwd(), 'public'), { maxAge: isProd ? '1h' : 0 }));
 app.use(sessionMiddleware);
 app.use(sameOrigin);
@@ -118,6 +124,19 @@ app.get('/tv', async (req, res, next) => {
     res.send(tvPage(loadState(), qr, url));
   } catch (e) { next(e); }
 });
+const tvScreen = (page) => async (req, res, next) => {
+  try {
+    const url = publicUrl(req);
+    const qr = await QRCode.toString(url, { type: 'svg', margin: 0, errorCorrectionLevel: 'M', color: { dark: '#0D2B55', light: '#0000' } });
+    noStore(res);
+    res.send(page(loadState(), qr, url, { secret: req.query.secret === '1' }));
+  } catch (e) { next(e); }
+};
+app.get('/tv/knockout', tvScreen(knockoutPage));
+app.get('/tv/summary', tvScreen(summaryPage));
+app.get('/partial/tv-knockout', (req, res) => { noStore(res); res.send(String(knockoutPartial(loadState()))); });
+app.get('/partial/tv-summary', (req, res) => { noStore(res); res.send(String(summaryPartial(loadState(), { secret: req.query.secret === '1' }))); });
+
 // ---------- Sign in ----------
 app.get('/login', (req, res) => {
   if (req.user) return res.redirect(homeFor(req.user));
@@ -719,9 +738,33 @@ app.post('/admin/demo', admin, (req, res) => {
   back(res, '/admin?tab=settings', 'msg', 'Demo data loaded. Open Live scores or the TV scoreboard to see it.');
 });
 
+// Resetting scores needs the word RESET typed in, so it cannot happen from one stray click.
 app.post('/admin/reset', admin, (req, res) => {
-  resetResults();
-  back(res, '/admin?tab=settings', 'msg', 'All scores, lineups, tickets and School Yard results removed.');
+  if (String(req.body.confirm || '').trim().toUpperCase() !== 'RESET') return back(res, '/admin?tab=settings#reset', 'err', 'Nothing was reset. Type RESET in the box to confirm.');
+  const lineups = Boolean(req.body.lineups);
+  const yard = Boolean(req.body.yard);
+  resetResults({ lineups, yard });
+  back(res, '/admin?tab=settings#reset', 'msg', `All match scores were reset${lineups ? ', and lineups and tickets removed' : ''}${yard ? ', and School Yard results and bonuses removed' : ''}.`);
+});
+
+// A player's portrait. The browser shrinks the picture to 480 x 600 before sending it.
+app.post('/admin/player/:id/photo', admin, express.json({ limit: '2mb' }), (req, res) => {
+  const p = get('SELECT * FROM players WHERE id = ?', Number(req.params.id));
+  if (!p) return res.status(404).json({ ok: false, text: 'Player not found.' });
+  const mine = (name) => name && fs.existsSync(path.join(PHOTO_DIR, path.basename(name)));
+  if (req.body?.remove) {
+    if (mine(p.photo)) fs.rmSync(path.join(PHOTO_DIR, path.basename(p.photo)), { force: true });
+    run('UPDATE players SET photo = NULL WHERE id = ?', p.id);
+    return res.json({ ok: true, photo: null, text: 'Photo removed.' });
+  }
+  const m = /^data:image\/jpeg;base64,([A-Za-z0-9+/=]+)$/.exec(String(req.body?.image || ''));
+  const buf = m ? Buffer.from(m[1], 'base64') : null;
+  if (!buf || buf.length < 500 || buf.length > 900 * 1024 || buf[0] !== 0xff || buf[1] !== 0xd8) return res.status(422).json({ ok: false, text: 'That file could not be used. Choose a JPEG or PNG photo.' });
+  const name = `p${p.id}-${Date.now().toString(36)}.jpg`;
+  fs.writeFileSync(path.join(PHOTO_DIR, name), buf);
+  if (mine(p.photo)) fs.rmSync(path.join(PHOTO_DIR, path.basename(p.photo)), { force: true });
+  run('UPDATE players SET photo = ? WHERE id = ?', name, p.id);
+  res.json({ ok: true, photo: `/assets/players/${name}`, text: 'Photo saved.' });
 });
 
 // ---------- Errors ----------

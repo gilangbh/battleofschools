@@ -108,6 +108,23 @@ ${links ? h`<section class="links-box"><h2>Sign-in links</h2>
 </section>`;
 }
 
+const FACE = raw('<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><circle cx="12" cy="9" r="4.2"/><path d="M3.5 22c.6-5 4-7.5 8.5-7.5s7.900 2.500 8.500 7.500Z"/></svg>');
+/** Small portrait beside a name. It opens a card to upload a new picture or remove the current one. */
+function photoControl(p) {
+  const src = p.photo ? `/assets/players/${p.photo}` : '';
+  return h`<span class="ph" data-photo="${p.id}">
+    <button type="button" class="ph-btn${src ? '' : ' is-empty'}" data-photo-open aria-expanded="false" aria-label="Photo of ${p.name}: upload or remove" title="Photo">${src ? h`<img src="${src}" alt="" width="48" height="60" loading="lazy">` : FACE}</button>
+    <span class="ph-pop" hidden>
+      <span class="ph-big${src ? '' : ' is-empty'}">${src ? h`<img src="${src}" alt="Photo of ${p.name}" width="480" height="600">` : FACE}</span>
+      <span class="ph-side"><b>${p.name}</b>
+        <label class="button small lime ph-upload">${src ? 'Replace photo' : 'Upload photo'}<input type="file" accept="image/jpeg,image/png,image/webp" data-photo-file hidden></label>
+        <button type="button" class="button small ghost" data-photo-remove${src ? '' : raw(' hidden')}>Remove photo</button>
+        <small data-photo-note>Portrait works best. It is cropped to 4:5 and shown on the TV board.</small>
+      </span>
+    </span>
+  </span>`;
+}
+
 function playersTab(state, teamId) {
   const team = state.teamById.get(teamId) || state.teams[0];
   const of = (t) => state.allPlayers.filter((p) => p.team_id === t.id);
@@ -129,7 +146,7 @@ function playersTab(state, teamId) {
       <tbody>${[...everyone, { id: 'new', name: '', level: 'bronze', active: 1 }].map((p) => h`<tr class="${p.id !== 'new' && !p.active ? 'is-inactive' : ''}">
         <td>${p.id === 'new'
           ? h`<input class="name-input" type="text" name="name_new" value="" placeholder="+ Add a player" aria-label="Name of a new player">`
-          : h`<div class="name-cell"><strong class="name-text">${p.name}</strong>${p.full_name && p.full_name !== p.name ? h`<small class="name-full">${p.full_name}${p.jersey_name && p.jersey_name !== p.name ? ` · jersey ${p.jersey_name}` : ''}</small>` : ''}<button type="button" class="name-edit" data-rename aria-label="Rename ${p.name}" title="Rename">${PENCIL}</button><input class="name-input" type="text" name="name_${p.id}" value="${p.name}" aria-label="Name" hidden></div>`}</td>
+          : h`<div class="name-cell">${photoControl(p)}<strong class="name-text">${p.name}</strong>${p.full_name && p.full_name !== p.name ? h`<small class="name-full">${p.full_name}${p.jersey_name && p.jersey_name !== p.name ? ` · jersey ${p.jersey_name}` : ''}</small>` : ''}<button type="button" class="name-edit" data-rename aria-label="Rename ${p.name}" title="Rename">${PENCIL}</button><input class="name-input" type="text" name="name_${p.id}" value="${p.name}" aria-label="Name" hidden></div>`}</td>
         <td><div class="seg" role="radiogroup" aria-label="Plays as">
           <label><input type="radio" name="gender_${p.id}" value="M"${p.gender === 'M' ? raw(' checked') : ''}><span>Man</span></label>
           <label><input type="radio" name="gender_${p.id}" value="F"${p.gender === 'F' ? raw(' checked') : ''}><span>Woman</span></label>
@@ -175,11 +192,30 @@ function settingsTab(state, visibility) {
   <a class="button ghost" href="/admin/export.json">Download backup</a>
 </section>
 <section><h2>Test data</h2>
-  <p>Use these before the event only. “Load demo data” fills random groups, lineups and scores so you can see every screen working. “Clear results” removes all scores, lineups, tickets and School Yard results but keeps schools, players, logins and fixtures.</p>
+  <p>Use these before the event only. “Load demo data” fills random groups, lineups and scores so you can see every screen working. Resetting scores is in the next section.</p>
   <div class="form-actions">
     <form method="post" action="/admin/demo" data-confirm="Replace all fixtures and scores with random demo data?"><button class="button ghost" type="submit">Load demo data</button></form>
-    <form method="post" action="/admin/reset" data-confirm="Remove all scores, lineups, tickets and School Yard results?"><button class="button ghost" type="submit">Clear results</button></form>
   </div>
+</section>
+<section id="reset"><h2>Reset scores</h2>
+  <p>Sets every match back to “not started” and removes its score, in the group stage and the finals. Schools, players, logins, fixtures, times and courts are kept. Download a backup first if there is anything you might want back.</p>
+  <button type="button" class="button ghost" data-toggle="reset-panel" aria-expanded="false">Reset all scores…</button>
+  <form method="post" action="/admin/reset" class="dm-panel reset-panel" id="reset-panel" hidden>
+    <p class="panel-title">This cannot be undone</p>
+    <label class="tick-line"><input type="checkbox" name="lineups"> Also remove every lineup and Golden Ticket, and empty the semifinals and final</label>
+    <label class="tick-line"><input type="checkbox" name="yard"> Also remove School Yard results and School Spirit bonuses</label>
+    <label class="reset-confirm">Type RESET to confirm <input type="text" name="confirm" autocomplete="off" autocapitalize="characters" spellcheck="false" required pattern="[Rr][Ee][Ss][Ee][Tt]" placeholder="RESET"></label>
+    <div class="form-actions"><button class="button danger" type="submit">Reset scores now</button><a class="button ghost small" href="/admin/export.json">Download backup first</a></div>
+  </form>
+</section>
+<section><h2>TV screens</h2>
+  <p>Open one of these on the venue TV in full screen. Each updates by itself.</p>
+  <ul class="tv-links" role="list">
+    <li><a href="/tv">Group stage</a><span>Six courts with player photos, both group tables, results ticker.</span></li>
+    <li><a href="/tv/knockout">Knockout stage</a><span>The two semifinals and the final as a bracket, category by category.</span></li>
+    <li><a href="/tv/summary">Final summary</a><span>Champion, finals results, both groups and every score.</span></li>
+    <li><a href="/tv/summary?secret=1">Final summary with player tables</a><span>Adds the top ten players by matches won and by games won. Only shown with this address.</span></li>
+  </ul>
 </section>`;
 }
 
