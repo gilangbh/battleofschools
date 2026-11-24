@@ -418,3 +418,16 @@ tr.is-mine{box-shadow:inset 4px 0 0 var(--navy)}
 .vis-option span{font-size:.88rem;color:#4d5e74;line-height:1.5}
 .vis-option b{display:block;font-size:1rem;color:var(--navy)}
 .visibility-form .button{justify-self:start;margin-top:.4rem}
+
+/* Held decisions: ties and knockout winners */
+tr.is-tied{background:#e6534614}
+tr.is-tied small{color:#b4291d}
+.ko-games{display:block;font-weight:400;font-size:.7rem;opacity:.85}
+.winner-list{list-style:none;margin:1rem 0 0;padding:0;display:grid;gap:.5rem;max-width:60rem}
+.winner-list li{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:center;gap:.6rem 1.5rem;border:1px solid var(--line);padding:.8rem 1rem}
+.winner-list b{display:block}
+.winner-list span{display:block;font-size:.95rem}
+.winner-list small{color:#4d5e74}
+.winner-actions{display:flex;flex-wrap:wrap;gap:.5rem;align-items:center}
+.winner-actions .button[disabled]{opacity:.4;cursor:not-allowed}
+.panel-title small{text-align:right}

@@ -69,7 +69,7 @@ export function scoreText(m) {
 // ---------- Page shell ----------
 // Changes on every start, so a new deploy is never served with a browser-cached script or stylesheet.
 const ASSET_VERSION = Date.now().toString(36);
-export function layout({ title, body, user = null, bodyClass = '', scripts = [], styles = [], bare = false, active = '' }) {
+export function layout({ title, body, user = null, bodyClass = '', scripts = [], styles = [], bare = false, active = '', mediaCredit = false }) {
   const nav = [
     ['/', 'Live scores', 'scores'],
     user && (user.role === 'captain' || user.role === 'admin') ? ['/captain', 'Lineups', 'captain'] : null,
@@ -89,6 +89,7 @@ export function layout({ title, body, user = null, bodyClass = '', scripts = [],
 </header>`;
   const footer = bare ? '' : h`
 <footer class="footer wrap">
+  ${mediaCredit ? h`<div class="score-media-credit"><span>Media Partner</span><img src="/assets/sponsors/tatler-navy.png" alt="Tatler" width="68" height="40"></div>` : ''}
   <div class="footer-top"><img src="/assets/logo.svg" alt="" width="200" height="38" class="footer-logo"><span class="eyebrow">Compete. Connect. Celebrate.</span></div>
   <div class="footer-links"><a href="https://battleofschools.id/">battleofschools.id</a><a href="https://battleofschools.id/homecoming/games/">How the games work</a><a href="/tv">TV scoreboard</a></div>
   <p class="footnote">An event by Cornerstone Collective. Scores are entered by the scoring desk after each match and may be corrected.</p>

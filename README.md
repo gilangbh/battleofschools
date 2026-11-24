@@ -50,17 +50,30 @@ Taken from battleofschools.id/homecoming/games/ as published on 17 November 2026
   Challenge points.
 - Semifinals and final: first to six games; at 5–5 a tiebreak to seven decides it (final score 6–5).
 - Two Silver players cannot pair, in any round.
-- Men’s doubles needs two men, Women’s doubles two women (checked once gender is set; the public site does
-  not publish gender, so it starts empty).
+- Men’s doubles needs two men, Women’s doubles two women. A player with no gender on record is refused
+  for those categories rather than waved through.
 - Each regular player needs three group-stage appearances: tracked and flagged on the captain page.
-- Two Golden Tickets per school, group stage only (Gold Player substitution or Golden Point).
+- Tactical tickets are two separate balances per school, group stage only: three Gold Player deployments and
+  two Golden Points. A school cannot use both kinds in the same category match. A Gold Player replaces a
+  player of the same gender, before the first serve or after game 2, and must be an approved, active Gold
+  Player on the roster.
 - Knockout rounds: a player plays one category match per round.
 
-Provisional, because the organizer has not published them yet:
+Held for the committee, because no rule has been published:
 
-- **Standings tiebreak**: total, then games won, then category matches won, then name.
-- **Who wins a semifinal or final**: the school that wins two of the three categories.
+- **Ties in the standings**: schools level on total share a rank. A tie across the top-two cut is flagged
+  and the semifinal is not filled automatically.
+- **Who wins a semifinal or final**: never worked out from the scores. An admin confirms the winner under
+  Admin → Draw and fixtures; the final and the champion follow from confirmed winners only.
 - **Open doubles pairings**: no restriction beyond the Silver rule.
+
+## Privacy and access
+
+- Admin → Settings → *Who can see the site*: admin and desk only (default), captains too, or everyone.
+  While private, every page, the TV board, the live fragments and the event stream need a sign-in.
+- Admin → Logins → *Cancel all links and sign everyone out* revokes every unused link and every other session.
+- Admin → Settings → *Download backup* saves all tournament data as JSON (no logins or links).
+-  holds private organizer material and is not in git.
 
 ## Data
 

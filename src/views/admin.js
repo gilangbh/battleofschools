@@ -60,9 +60,21 @@ function setupTab(state) {
   </form>` : ''}
 </section>
 
-<section><h2>3. Semifinals and final</h2>
-  <p>When the group stage is finished, this puts A1 v A2 and B1 v B2 into the semifinals. Run it again after the semifinals to set the final. You can also set the schools by hand in the table above.</p>
+<section id="knockout"><h2>3. Semifinals and final</h2>
+  <p>When the group stage is finished, this puts A1 v A2 and B1 v B2 into the semifinals. It will not fill a group that is unfinished or tied for a semifinal place: set that semifinal by hand in the table above once the committee decides.</p>
   <form method="post" action="/admin/knockout/fill"><button class="button" type="submit">Fill from current results</button></form>
+  ${state.knockout.filter((sd) => sd.a && sd.b).length ? h`<h3 style="margin-top:1.5rem">Confirm winners</h3>
+  <p class="footnote">The app does not decide who wins a semifinal or the final. Check the three category results, then confirm the winner. The final is filled from the confirmed semifinal winners, and the champion shows publicly once the final’s winner is confirmed.</p>
+  <ul class="winner-list" role="list">${state.knockout.filter((sd) => sd.a && sd.b).map((sd) => {
+    const s = sd.summary;
+    return h`<li><div><b>${showdownTitle(sd)}</b><span>${sd.a.name} v ${sd.b.name}</span>
+        <small>${s.complete ? `Categories ${s.catsA}–${s.catsB} · games ${s.gamesA}–${s.gamesB}` : `${s.done} of 3 categories scored`}${s.winner ? ` · confirmed: ${(s.winner === 'a' ? sd.a : sd.b).name}` : ''}</small></div>
+      <form method="post" action="/admin/showdown/${sd.id}/winner" class="winner-actions">
+        <button class="button small ${s.winner === 'a' ? 'lime' : 'ghost'}" type="submit" name="side" value="a"${s.complete ? '' : raw(' disabled')}>${sd.a.name} won</button>
+        <button class="button small ${s.winner === 'b' ? 'lime' : 'ghost'}" type="submit" name="side" value="b"${s.complete ? '' : raw(' disabled')}>${sd.b.name} won</button>
+        ${s.winner ? h`<button class="link-button" type="submit" name="side" value="">Clear</button>` : ''}
+      </form></li>`;
+  })}</ul>` : ''}
 </section>`;
 }
 

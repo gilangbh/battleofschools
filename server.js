@@ -12,7 +12,7 @@ import {
   startSession, endSession, revokeAllAccess, sendLoginEmail, mailConfigured, rateLimited, isProd, ADMIN_LINK_MS,
 } from './src/auth.js';
 import {
-  validateFinalScore, validateRunningScore, validateLineup, isKnockout, TICKETS_PER_TEAM, STAGE_LABEL,
+  validateFinalScore, validateRunningScore, validateLineup, isKnockout, ticketBalance, GOLD_DEPLOYMENTS, GOLDEN_POINTS, STAGE_LABEL,
 } from './src/rules.js';
 import { publicPage, publicPartial, tvPage, tvPartial, loginPage, confirmLoginPage, holdingPage } from './src/views/public.js';
 import { captainPage } from './src/views/captain.js';
@@ -178,7 +178,8 @@ function saveLineup(state, m, team, body, userId, { byDesk = false } = {}) {
     players: team.players,
     p1, p2, goldOut,
     otherLineups: sd.matches.filter((x) => x.id !== m.id && x.lineup[side]).map((x) => ({ category: x.category, p1: x.lineup[side].p1, p2: x.lineup[side].p2 })),
-    ticketsUsedElsewhere: teamTickets.filter((t) => !isOwnStart(t)).length,
+    goldUsedElsewhere: teamTickets.filter((t) => t.type === 'gold_player' && !isOwnStart(t)).length,
+    goldenPointHere: m.tickets.some((t) => t.team_id === team.id && t.type === 'golden_point'),
   });
   if (errors.length) return errors;
   tx(() => {
@@ -355,14 +356,19 @@ app.post('/desk/match/:id/ticket', requireRole('desk'), (req, res) => {
   if (isKnockout(m.sd.stage)) return deskBack(res, ctx, 'err', 'Golden Tickets can only be used in the group stage.');
   const team = [m.sd.a, m.sd.b].find((t) => t && t.id === req.body.team);
   if (!team) return deskBack(res, ctx, 'err', 'Choose the school that used the ticket.');
-  const used = state.ticketsByTeam.get(team.id) || [];
-  if (used.length >= TICKETS_PER_TEAM) return deskBack(res, ctx, 'err', `${team.name} has already used its ${TICKETS_PER_TEAM} Golden Tickets.`);
+  const bal = ticketBalance(state.ticketsByTeam.get(team.id) || []);
+  const here = m.tickets.filter((t) => t.team_id === team.id);
   const use = String(req.body.use || '');
   if (use === 'point') {
+    if (bal.pointLeft <= 0) return deskBack(res, ctx, 'err', `${team.name} has already used its ${GOLDEN_POINTS} Golden Points.`);
+    if (here.some((t) => t.type === 'gold_player')) return deskBack(res, ctx, 'err', `${team.name} has a Gold Player in this match. The two tickets cannot be combined in one match.`);
     run("INSERT INTO tickets (team_id, match_id, type, created_at) VALUES (?, ?, 'golden_point', ?)", team.id, m.id, Date.now());
     return deskBack(res, ctx, 'msg', `Golden Point recorded for ${team.name}.`);
   }
   if (!use.startsWith('out:')) return deskBack(res, ctx, 'err', 'Choose Golden Point or the player the Gold Player replaces.');
+  if (bal.goldLeft <= 0) return deskBack(res, ctx, 'err', `${team.name} has already used its ${GOLD_DEPLOYMENTS} Gold Player deployments.`);
+  if (!team.gold) return deskBack(res, ctx, 'err', `${team.name} has no approved Gold Player on its roster.`);
+  if (here.some((t) => t.type === 'golden_point')) return deskBack(res, ctx, 'err', `${team.name} used a Golden Point in this match. The two tickets cannot be combined in one match.`);
   const out = Number(use.slice(4));
   const timing = req.body.timing === 'after_g2' ? 'after_g2' : 'start';
   const side = m.sd.team_a === team.id ? 'a' : 'b';
@@ -371,7 +377,8 @@ app.post('/desk/match/:id/ticket', requireRole('desk'), (req, res) => {
   if (out !== l.p1 && out !== l.p2) return deskBack(res, ctx, 'err', `Choose which ${team.name} player the Gold Player replaced.`);
   if (m.tickets.some((t) => t.team_id === team.id && t.type === 'gold_player')) return deskBack(res, ctx, 'err', `${team.name} already has a Gold Player in this match.`);
   const outP = state.playerById.get(out);
-  if (team.gold && team.gold.gender && outP.gender && team.gold.gender !== outP.gender) return deskBack(res, ctx, 'err', 'The Gold Player can only replace a player of the same gender.');
+  if (!team.gold.gender || !outP.gender) return deskBack(res, ctx, 'err', 'The Gold Player replaces a player of the same gender, and a gender is missing on record. Set it under Admin → Players first.');
+  if (team.gold.gender !== outP.gender) return deskBack(res, ctx, 'err', 'The Gold Player can only replace a player of the same gender.');
   run("INSERT INTO tickets (team_id, match_id, type, player_out, timing, created_at) VALUES (?, ?, 'gold_player', ?, ?, ?)", team.id, m.id, out, timing, Date.now());
   deskBack(res, ctx, 'msg', `Gold Player recorded for ${team.name}.`);
 });
@@ -457,7 +464,7 @@ app.post('/admin/showdowns', admin, (req, res) => {
         run('DELETE FROM lineups WHERE match_id IN (SELECT id FROM matches WHERE showdown_id = ?) AND team_id NOT IN (?, ?)', sd.id, a || '', b || '');
         run('DELETE FROM tickets WHERE match_id IN (SELECT id FROM matches WHERE showdown_id = ?) AND team_id NOT IN (?, ?)', sd.id, a || '', b || '');
       }
-      run('UPDATE showdowns SET team_a = ?, team_b = ?, start_time = ?, court = ? WHERE id = ?', a, b, time, court, sd.id);
+      run('UPDATE showdowns SET team_a = ?, team_b = ?, start_time = ?, court = ?, winner = CASE WHEN ? THEN NULL ELSE winner END WHERE id = ?', a, b, time, court, sd.team_a !== a || sd.team_b !== b ? 1 : 0, sd.id);
     }
   });
   back(res, '/admin?tab=setup#fixtures', 'msg', next.length ? `Saved ${next.length} showdown${next.length === 1 ? '' : 's'}.` : 'Nothing had changed.');
@@ -470,7 +477,17 @@ app.post('/admin/showdown/:id/delete', admin, (req, res) => {
 
 app.post('/admin/knockout/fill', admin, (req, res) => {
   const notes = fillKnockout();
-  back(res, '/admin?tab=setup', notes.length ? 'msg' : 'err', notes.length ? notes.join('. ') : 'Nothing to fill yet. Set groups and generate fixtures first.');
+  back(res, '/admin?tab=setup#knockout', notes.length ? 'msg' : 'err', notes.length ? `${notes.join('. ')}.` : 'Nothing to fill yet. Set groups and generate fixtures first.');
+});
+
+// The organizer names the winner of a semifinal or final; the app never decides it.
+app.post('/admin/showdown/:id/winner', admin, (req, res) => {
+  const sd = loadState().sdById.get(Number(req.params.id));
+  if (!sd || !isKnockout(sd.stage)) return res.status(404).send('Not found.');
+  const side = req.body.side === 'a' || req.body.side === 'b' ? req.body.side : null;
+  if (side && !sd.summary.complete) return back(res, '/admin?tab=setup#knockout', 'err', 'Enter all three category scores before confirming a winner.');
+  run('UPDATE showdowns SET winner = ? WHERE id = ?', side, sd.id);
+  back(res, '/admin?tab=setup#knockout', 'msg', side ? `${(side === 'a' ? sd.a : sd.b).name} confirmed as the winner.` : 'Winner cleared.');
 });
 
 app.post('/admin/users', admin, (req, res) => {

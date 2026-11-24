@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
-  validateFinalScore, validateRunningScore, validateLineup, showdownSummary, computeStandings, generateGroupRounds,
+  validateFinalScore, validateRunningScore, validateLineup, showdownSummary, computeStandings, generateGroupRounds, ticketBalance,
 } from '../src/rules.js';
 
 const P = (id, level = 'bronze', gender = null, extra = {}) => ({ id, name: `P${id}`, level, gender, is_gold: 0, ...extra });
@@ -48,12 +48,13 @@ test('pairs need two different players from the roster', () => {
   assert.ok(validateLineup({ stage: 'group', category: 'open', players, p1: 1, p2: 99 }).length);
 });
 
-test('gender is checked for men’s and women’s doubles only when known', () => {
+test('men’s and women’s doubles need a known, matching gender', () => {
   const players = [P(1, 'bronze', 'M'), P(2, 'bronze', 'F'), P(3)];
   assert.ok(validateLineup({ stage: 'group', category: 'men', players, p1: 1, p2: 2 }).length);
   assert.ok(validateLineup({ stage: 'group', category: 'women', players, p1: 1, p2: 2 }).length);
   assert.equal(validateLineup({ stage: 'group', category: 'open', players, p1: 1, p2: 2 }).length, 0);
-  assert.equal(validateLineup({ stage: 'group', category: 'men', players, p1: 1, p2: 3 }).length, 0);
+  assert.ok(validateLineup({ stage: 'group', category: 'men', players, p1: 1, p2: 3 }).length, 'unknown gender cannot be checked');
+  assert.equal(validateLineup({ stage: 'group', category: 'open', players, p1: 1, p2: 3 }).length, 0);
 });
 
 test('knockout: one category match per player per round', () => {
@@ -63,20 +64,25 @@ test('knockout: one category match per player per round', () => {
   assert.equal(validateLineup({ stage: 'group', category: 'open', players, p1: 1, p2: 2, otherLineups }).length, 0);
 });
 
-test('Gold Player ticket: group stage only, limit of two tickets, same gender', () => {
+test('Gold Player: group stage only, three deployments, same gender, not with a Golden Point', () => {
   const gold = P(9, 'bronze', 'M', { is_gold: 1 });
   const players = [P(1, 'bronze', 'M'), P(2, 'bronze', 'F'), gold];
   const base = { category: 'open', players, p1: 1, p2: 2 };
   assert.equal(validateLineup({ ...base, stage: 'group', goldOut: 1 }).length, 0);
   assert.ok(validateLineup({ ...base, stage: 'group', goldOut: 2 }).length, 'different gender');
-  assert.ok(validateLineup({ ...base, stage: 'group', goldOut: 1, ticketsUsedElsewhere: 2 }).length);
+  assert.equal(validateLineup({ ...base, stage: 'group', goldOut: 1, goldUsedElsewhere: 2 }).length, 0);
+  assert.ok(validateLineup({ ...base, stage: 'group', goldOut: 1, goldUsedElsewhere: 3 }).length);
+  assert.ok(validateLineup({ ...base, stage: 'group', goldOut: 1, goldenPointHere: true }).length);
+  const noGender = [P(1), P(2, 'bronze', 'F'), gold];
+  assert.ok(validateLineup({ ...base, players: noGender, stage: 'group', goldOut: 1 }).length, 'missing gender cannot be checked');
   assert.ok(validateLineup({ ...base, stage: 'semi', goldOut: 1 }).length);
   assert.ok(validateLineup({ ...base, stage: 'group', p1: 9, p2: 2 }).length, 'gold cannot be picked as a regular');
 });
 
-test('knockout showdown goes to the school that wins two categories', () => {
+test('a knockout winner is never worked out from the scores', () => {
   const m = (a, b, status = 'done') => ({ status, score_a: a, score_b: b });
-  assert.equal(showdownSummary('semi', [m(6, 2), m(4, 6), m(6, 5)]).winner, 'a');
+  const semi = showdownSummary('semi', [m(6, 2), m(4, 6), m(6, 5)]);
+  assert.deepEqual([semi.winner, semi.catsA, semi.catsB, semi.gamesA, semi.gamesB, semi.complete], [null, 2, 1, 16, 13, true]);
   assert.equal(showdownSummary('semi', [m(6, 2), m(4, 6), m(null, null, 'live')]).winner, null);
   const g = showdownSummary('group', [m(3, 2), m(1, 4), m(5, 0)]);
   assert.deepEqual([g.gamesA, g.gamesB, g.complete, g.winner], [9, 6, true, null]);
@@ -107,4 +113,21 @@ test('every school meets every school in the other group exactly once', () => {
     for (const [x, y] of pairs) seen.add(`${x}-${y}`);
   }
   assert.equal(seen.size, 25);
+});
+
+test('ticket balances are separate: three Gold Player deployments and two Golden Points', () => {
+  const bal = ticketBalance([{ type: 'gold_player' }, { type: 'golden_point' }, { type: 'golden_point' }]);
+  assert.deepEqual([bal.goldLeft, bal.pointLeft], [2, 0]);
+});
+
+test('schools level on total share a rank and a tie across the top-two cut is held', () => {
+  const teams = ['a1', 'a2', 'a3', 'b1'].map((id) => ({ id, name: id.toUpperCase(), grp: id[0].toUpperCase() }));
+  const done = (a, b) => ({ status: 'done', score_a: a, score_b: b });
+  const mk = (list) => list.map(([x, s]) => ({ stage: 'group', team_a: x, team_b: 'b1', matches: [done(s, 5 - s)] }));
+  const tied = computeStandings(teams, mk([['a1', 4], ['a2', 3], ['a3', 3]]), new Map());
+  assert.deepEqual(tied.A.map((r) => [r.team.id, r.rank, r.place]), [['a1', 1, 'qualified'], ['a2', 2, 'tied'], ['a3', 2, 'tied']]);
+  const clear = computeStandings(teams, mk([['a1', 4], ['a2', 3], ['a3', 1]]), new Map());
+  assert.deepEqual(clear.A.map((r) => r.place), ['qualified', 'qualified', null]);
+  const running = computeStandings(teams, [...mk([['a1', 4], ['a2', 3], ['a3', 1]]), { stage: 'group', team_a: 'a1', team_b: 'b1', matches: [{ status: 'scheduled' }] }], new Map());
+  assert.deepEqual(running.A.map((r) => r.place), ['provisional', 'provisional', null]);
 });

@@ -1,5 +1,5 @@
 import { h, raw, layout, teamMark, categoryTag, pairNames, showdownTitle, scoreText, flash, LEVEL_LABEL, ICON } from './ui.js';
-import { TICKETS_PER_TEAM, MIN_APPEARANCES, isKnockout } from '../rules.js';
+import { ticketBalance, GOLD_DEPLOYMENTS, GOLDEN_POINTS, MIN_APPEARANCES, isKnockout } from '../rules.js';
 
 const playerLabel = (p) => `${p.name} · ${LEVEL_LABEL[p.level]}${p.gender ? ` · ${p.gender === 'M' ? 'Man' : 'Woman'}` : ''}`;
 
@@ -10,7 +10,7 @@ function playerSelect(name, team, selected) {
   </select>`;
 }
 
-function lineupBlock(state, team, m, ticketsLeft, base) {
+function lineupBlock(state, team, m, goldLeft, base) {
   const sd = m.sd;
   const side = sd.team_a === team.id ? 'a' : 'b';
   const mine = m.lineup[side];
@@ -27,7 +27,7 @@ function lineupBlock(state, team, m, ticketsLeft, base) {
   if (m.status === 'done') {
     return h`<div class="lineup is-locked">${head}<p class="lineup-status">Finished ${scoreText(m)}. No lineup was recorded.</p></div>`;
   }
-  const canGold = !isKnockout(sd.stage) && team.gold && (ticketsLeft > 0 || (mine && mine.goldOut));
+  const canGold = !isKnockout(sd.stage) && team.gold && (goldLeft > 0 || (mine && mine.goldOut));
   const goldSel = mine && mine.goldOut ? (mine.goldOut === mine.p1 ? 'p1' : 'p2') : '';
   return h`<div class="lineup ${mine ? 'is-waiting' : 'is-open'}">${head}
     ${mine ? h`<p class="lineup-status"><strong>Submitted.</strong> Hidden until ${opp ? opp.name : 'your opponent'} submits.</p>` : ''}
@@ -48,7 +48,7 @@ function lineupBlock(state, team, m, ticketsLeft, base) {
 export function captainPage(state, user, team, query) {
   const base = user.role === 'admin' ? `/captain/${team.id}` : '/captain';
   const used = state.ticketsByTeam.get(team.id) || [];
-  const ticketsLeft = TICKETS_PER_TEAM - used.length;
+  const bal = ticketBalance(used);
   const mine = state.showdowns.filter((sd) => sd.team_a === team.id || sd.team_b === team.id);
   const groupMatchesLeft = mine
     .filter((sd) => sd.stage === 'group')
@@ -61,7 +61,7 @@ export function captainPage(state, user, team, query) {
     const opp = sd.team_a === team.id ? sd.b : sd.a;
     return h`<article class="showdown-card">
       <header><h3>${showdownTitle(sd)} <span>v</span> ${opp ? h`${teamMark(opp)} ${opp.name}` : 'To be decided'}</h3><p class="fixture-meta">${[sd.start_time, sd.court].filter(Boolean).join(' · ')}</p></header>
-      <div class="lineup-grid">${sd.matches.map((m) => lineupBlock(state, team, m, ticketsLeft, base))}</div>
+      <div class="lineup-grid">${sd.matches.map((m) => lineupBlock(state, team, m, bal.goldLeft, base))}</div>
     </article>`;
   };
   // Showdowns that still need attention come first; finished ones fold away below.
@@ -89,7 +89,8 @@ export function captainPage(state, user, team, query) {
     <section aria-labelledby="squad-h">
       <h2 id="squad-h">Your squad</h2>
       <div class="stat-row">
-        <div class="stat"><span class="stat-num">${ticketsLeft}</span><span>Golden Ticket${ticketsLeft === 1 ? '' : 's'} left of ${TICKETS_PER_TEAM}</span></div>
+        <div class="stat"><span class="stat-num">${bal.goldLeft}</span><span>Gold Player use${bal.goldLeft === 1 ? '' : 's'} left of ${GOLD_DEPLOYMENTS}</span></div>
+        <div class="stat"><span class="stat-num">${bal.pointLeft}</span><span>Golden Point${bal.pointLeft === 1 ? '' : 's'} left of ${GOLDEN_POINTS}</span></div>
         <div class="stat"><span class="stat-num">${short.length}</span><span>player${short.length === 1 ? '' : 's'} still under ${MIN_APPEARANCES} appearances</span></div>
         <div class="stat"><span class="stat-num">${groupMatchesLeft}</span><span>group lineup${groupMatchesLeft === 1 ? '' : 's'} still to submit</span></div>
       </div>
@@ -110,7 +111,7 @@ export function captainPage(state, user, team, query) {
       </table>
       ${missingGender ? h`<p class="form-actions"><button class="button small ghost" type="submit">Save “plays as”</button> <span class="footnote">Needed so the app can check Men’s and Women’s doubles pairs. It cannot be changed here once saved.</span></p>` : ''}
       </form>
-      ${used.length ? h`<p class="footnote">Golden Tickets used: ${used.map((t) => {
+      ${used.length ? h`<p class="footnote">Tickets used: ${used.map((t) => {
         const m = state.matchById.get(t.match_id);
         return `${t.type === 'gold_player' ? 'Gold Player' : 'Golden Point'} in ${m ? showdownTitle(m.sd) : 'a match'}`;
       }).join(', ')}.</p>` : ''}

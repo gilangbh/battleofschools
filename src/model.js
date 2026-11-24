@@ -117,7 +117,10 @@ export function loadState() {
     };
   }
   for (const m of matchById.values()) m.revealed = Boolean(m.lineup.a && m.lineup.b);
-  for (const sd of showdowns) sd.summary = showdownSummary(sd.stage, sd.matches);
+  for (const sd of showdowns) {
+    sd.summary = showdownSummary(sd.stage, sd.matches);
+    if (isKnockout(sd.stage) && (sd.winner === 'a' || sd.winner === 'b')) sd.summary.winner = sd.winner;
+  }
 
   // Challenge points
   const stations = all('SELECT * FROM stations ORDER BY sort, id');
@@ -184,30 +187,35 @@ export function generateFixtures() {
   });
 }
 
-/** Semifinals from the current standings (A1 v A2, B1 v B2), final from the semifinal winners. */
+/**
+ * Semifinals from the final group standings (A1 v A2, B1 v B2); final from the confirmed semifinal winners.
+ * Nothing is filled while a place is still open: an unfinished group stage, a tie across the top-two cut,
+ * or a semifinal whose winner the organizer has not confirmed.
+ */
 export function fillKnockout() {
   const s = loadState();
   const semis = s.showdowns.filter((x) => x.stage === 'semi');
   const final = s.showdowns.find((x) => x.stage === 'final');
   const notes = [];
   // Never re-seat a knockout showdown that already has a lineup or a score.
-  const untouched = (sd) => sd.matches.every((m) => m.status === 'scheduled' && !m.lineup.a && !m.lineup.b);
-  const ga = s.standings.A || [];
-  const gb = s.standings.B || [];
+  const untouched = (sd) => sd.matches.every((x) => x.status === 'scheduled' && !x.lineup.a && !x.lineup.b);
   tx(() => {
-    if (semis[0] && ga.length >= 2 && untouched(semis[0])) {
-      run('UPDATE showdowns SET team_a = ?, team_b = ? WHERE id = ?', ga[0].team.id, ga[1].team.id, semis[0].id);
-      notes.push(`Semifinal 1: ${ga[0].team.name} v ${ga[1].team.name}`);
-    }
-    if (semis[1] && gb.length >= 2 && untouched(semis[1])) {
-      run('UPDATE showdowns SET team_a = ?, team_b = ? WHERE id = ?', gb[0].team.id, gb[1].team.id, semis[1].id);
-      notes.push(`Semifinal 2: ${gb[0].team.name} v ${gb[1].team.name}`);
-    }
-    if (final && semis.length === 2) {
+    [['A', semis[0]], ['B', semis[1]]].forEach(([g, sd], i) => {
+      const list = s.standings[g] || [];
+      if (!sd || list.length < 2) return;
+      if (!untouched(sd)) { notes.push(`Semifinal ${i + 1} already has a lineup or score, so it was left alone`); return; }
+      if (list.some((row) => row.place === 'tied')) { notes.push(`Group ${g} has a tie for a semifinal place: set Semifinal ${i + 1} by hand once the committee decides`); return; }
+      if (list[0].place !== 'qualified' || list[1].place !== 'qualified') { notes.push(`Group ${g} is not finished yet`); return; }
+      run('UPDATE showdowns SET team_a = ?, team_b = ?, winner = NULL WHERE id = ?', list[0].team.id, list[1].team.id, sd.id);
+      notes.push(`Semifinal ${i + 1}: ${list[0].team.name} v ${list[1].team.name}`);
+    });
+    if (final && semis.length === 2 && semis.every((sd) => sd.summary.complete)) {
       const w = semis.map((sd) => (sd.summary.winner === 'a' ? sd.team_a : sd.summary.winner === 'b' ? sd.team_b : null));
-      if (w[0] && w[1] && untouched(final)) {
-        run('UPDATE showdowns SET team_a = ?, team_b = ? WHERE id = ?', w[0], w[1], final.id);
-        notes.push('Final set from the semifinal winners.');
+      if (!w[0] || !w[1]) notes.push('Confirm the winner of each semifinal first, then fill the final');
+      else if (!untouched(final)) notes.push('The final already has a lineup or score, so it was left alone');
+      else {
+        run('UPDATE showdowns SET team_a = ?, team_b = ?, winner = NULL WHERE id = ?', w[0], w[1], final.id);
+        notes.push('Final set from the confirmed semifinal winners');
       }
     }
   });
@@ -220,6 +228,6 @@ export function resetResults() {
     run('DELETE FROM lineups');
     run("UPDATE matches SET status = 'scheduled', score_a = NULL, score_b = NULL, tb_a = NULL, tb_b = NULL, started_at = NULL, finished_at = NULL");
     run('DELETE FROM challenge');
-    run("UPDATE showdowns SET team_a = NULL, team_b = NULL WHERE stage != 'group'");
+    run("UPDATE showdowns SET team_a = NULL, team_b = NULL, winner = NULL WHERE stage != 'group'");
   });
 }

@@ -6,7 +6,16 @@ export const CATEGORY_LABEL = { men: 'Men’s doubles', women: 'Women’s double
 export const STAGE_LABEL = { group: 'Group stage', semi: 'Semifinal', third: 'Third place', final: 'Final' };
 export const GROUP_GAMES = 5; // every group category match plays exactly five games
 export const KNOCKOUT_TARGET = 6; // semifinals and final are a race to six
-export const TICKETS_PER_TEAM = 2;
+// Tactical tickets are two separate private balances per school (organizer decision, November 2026).
+export const GOLD_DEPLOYMENTS = 3;
+export const GOLDEN_POINTS = 2;
+
+/** How many of each ticket a school has used and has left. */
+export function ticketBalance(tickets = []) {
+  const goldUsed = tickets.filter((t) => t.type === 'gold_player').length;
+  const pointUsed = tickets.filter((t) => t.type === 'golden_point').length;
+  return { goldUsed, pointUsed, goldLeft: Math.max(0, GOLD_DEPLOYMENTS - goldUsed), pointLeft: Math.max(0, GOLDEN_POINTS - pointUsed) };
+}
 export const MIN_APPEARANCES = 3;
 
 export const isKnockout = (stage) => stage !== 'group';
@@ -56,7 +65,7 @@ export function validateFinalScore(stage, a, b, tbA = null, tbB = null) {
  */
 export function validateLineup(ctx) {
   const errors = [];
-  const { stage, category, players, p1, p2, goldOut = null, otherLineups = [], ticketsUsedElsewhere = 0 } = ctx;
+  const { stage, category, players, p1, p2, goldOut = null, otherLineups = [], goldUsedElsewhere = 0, goldenPointHere = false } = ctx;
   const byId = new Map(players.map((p) => [p.id, p]));
   const a = byId.get(p1);
   const b = byId.get(p2);
@@ -68,10 +77,16 @@ export function validateLineup(ctx) {
     errors.push(`${a.name} and ${b.name} are both Silver. Silver players cannot partner with each other.`);
   }
   if (category === 'men') {
-    for (const p of [a, b]) if (p.gender === 'F') errors.push(`${p.name} is listed as a woman and cannot play Men’s doubles.`);
+    for (const p of [a, b]) {
+      if (p.gender === 'F') errors.push(`${p.name} is listed as a woman and cannot play Men’s doubles.`);
+      else if (p.gender !== 'M') errors.push(`${p.name} has no gender on record, so cannot be checked for Men’s doubles. Ask the organizer to set it.`);
+    }
   }
   if (category === 'women') {
-    for (const p of [a, b]) if (p.gender === 'M') errors.push(`${p.name} is listed as a man and cannot play Women’s doubles.`);
+    for (const p of [a, b]) {
+      if (p.gender === 'M') errors.push(`${p.name} is listed as a man and cannot play Women’s doubles.`);
+      else if (p.gender !== 'F') errors.push(`${p.name} has no gender on record, so cannot be checked for Women’s doubles. Ask the organizer to set it.`);
+    }
   }
   if (isKnockout(stage)) {
     for (const other of otherLineups) {
@@ -90,8 +105,10 @@ export function validateLineup(ctx) {
     else if (!gold) errors.push('Your school has no approved Gold Player.');
     else if (!out || (out.id !== a.id && out.id !== b.id)) errors.push('The Gold Player must replace one of the two players in this pair.');
     else {
-      if (ticketsUsedElsewhere >= TICKETS_PER_TEAM) errors.push(`Your school has already used its ${TICKETS_PER_TEAM} Golden Tickets.`);
-      if (gold.gender && out.gender && gold.gender !== out.gender) errors.push(`The Gold Player can only replace a player of the same gender, and ${out.name} is not.`);
+      if (goldUsedElsewhere >= GOLD_DEPLOYMENTS) errors.push(`Your school has already used its ${GOLD_DEPLOYMENTS} Gold Player deployments.`);
+      if (goldenPointHere) errors.push('Your school has already used a Golden Point in this match. The two tickets cannot be combined in one match.');
+      if (!gold.gender || !out.gender) errors.push('The Gold Player replaces a player of the same gender, and a gender is missing on record. Ask the organizer to set it.');
+      else if (gold.gender !== out.gender) errors.push(`The Gold Player can only replace a player of the same gender, and ${out.name} is not.`);
     }
   }
   return errors;
@@ -118,27 +135,28 @@ export function showdownSummary(stage, matches) {
     if (w === 'b') s.catsB++;
   }
   s.complete = matches.length > 0 && s.done === matches.length;
-  if (isKnockout(stage)) {
-    // Provisional until the organizer confirms: the school that wins two of the three categories advances.
-    if (s.catsA >= 2) s.winner = 'a';
-    else if (s.catsB >= 2) s.winner = 'b';
-  }
+  // The winner of a semifinal or final is never worked out here. The committee has not decided whether
+  // categories won or total games decide it, so an admin confirms the winner and loadState copies it in.
   return s;
 }
 
 /**
  * Group standings. Total = padel games won in finished group matches + Festival Challenge points.
- * Provisional tiebreak (the organizer has not published one): total, then games won,
- * then category matches won, then name.
+ * The committee has not published a tiebreak, so schools level on total share a rank and are never
+ * separated here. Each row gets a `place`:
+ *   'qualified'   top two, group stage finished, no tie across the cut
+ *   'provisional' currently top two, group stage still running
+ *   'tied'        level on total with a school on the other side of the top-two cut
  */
 export function computeStandings(teams, showdowns, challengeByTeam) {
   const rows = new Map(
-    teams.map((t) => [t.id, { team: t, played: 0, won: 0, lost: 0, games: 0, challenge: challengeByTeam.get(t.id) || 0, total: 0 }]),
+    teams.map((t) => [t.id, { team: t, played: 0, won: 0, lost: 0, games: 0, challenge: challengeByTeam.get(t.id) || 0, total: 0, place: null }]),
   );
+  let groupLeft = 0;
   for (const sd of showdowns) {
     if (sd.stage !== 'group') continue;
     for (const m of sd.matches) {
-      if (m.status !== 'done') continue;
+      if (m.status !== 'done') { groupLeft++; continue; }
       const ra = rows.get(sd.team_a);
       const rb = rows.get(sd.team_b);
       if (!ra || !rb) continue;
@@ -151,19 +169,29 @@ export function computeStandings(teams, showdowns, challengeByTeam) {
     }
   }
   const round1 = (n) => Math.round(n * 10) / 10;
-  for (const r of rows.values()) {
-    r.challenge = round1(r.challenge);
-    r.total = round1(r.games + r.challenge);
+  for (const row of rows.values()) {
+    row.challenge = round1(row.challenge);
+    row.total = round1(row.games + row.challenge);
   }
-  const sorted = [...rows.values()].sort(
-    (x, y) => y.total - x.total || y.games - x.games || y.won - x.won || x.team.name.localeCompare(y.team.name),
-  );
+  const sorted = [...rows.values()].sort((x, y) => y.total - x.total || x.team.name.localeCompare(y.team.name));
   const groups = {};
-  for (const r of sorted) {
-    const g = r.team.grp || '';
-    (groups[g] ||= []).push(r);
+  for (const row of sorted) {
+    const g = row.team.grp || '';
+    (groups[g] ||= []).push(row);
   }
-  for (const list of Object.values(groups)) list.forEach((r, i) => { r.rank = i + 1; });
+  const anyPlayed = sorted.some((row) => row.played > 0);
+  for (const list of Object.values(groups)) {
+    for (const row of list) row.rank = 1 + list.filter((o) => o.total > row.total).length;
+    if (!anyPlayed || list.length < 3) {
+      if (anyPlayed) list.slice(0, 2).forEach((row) => { row.place = groupLeft === 0 ? 'qualified' : 'provisional'; });
+      continue;
+    }
+    const cutTied = list[1].total === list[2].total;
+    for (const [i, row] of list.entries()) {
+      if (cutTied && row.total === list[1].total) row.place = 'tied';
+      else if (i < 2) row.place = groupLeft === 0 ? 'qualified' : 'provisional';
+    }
+  }
   return groups;
 }
 

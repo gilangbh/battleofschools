@@ -1,5 +1,5 @@
 import { h, raw, layout, teamMark, categoryTag, showdownTitle, scoreText, flash, LEVEL_LABEL } from './ui.js';
-import { isKnockout, TICKETS_PER_TEAM, GROUP_GAMES, KNOCKOUT_TARGET, CATEGORY_LABEL } from '../rules.js';
+import { isKnockout, ticketBalance, GOLD_DEPLOYMENTS, GOLDEN_POINTS, GROUP_GAMES, KNOCKOUT_TARGET, CATEGORY_LABEL } from '../rules.js';
 
 const SHORT = { men: 'Men’s', women: 'Women’s', open: 'Open' };
 const roundTitle = (sd) => (sd.stage === 'group' ? `Round ${sd.round}` : sd.stage === 'semi' ? 'Semifinals' : showdownTitle(sd));
@@ -79,8 +79,12 @@ function teamBlock(state, m, side) {
   const max = ko ? KNOCKOUT_TARGET : GROUP_GAMES;
   const score = side === 'a' ? m.score_a : m.score_b;
   const mine = m.tickets.filter((t) => t.team_id === team.id);
-  const left = TICKETS_PER_TEAM - (state.ticketsByTeam.get(team.id) || []).length;
+  const bal = ticketBalance(state.ticketsByTeam.get(team.id) || []);
   const hasGold = mine.some((t) => t.type === 'gold_player');
+  const hasPoint = mine.some((t) => t.type === 'golden_point');
+  const canPoint = bal.pointLeft > 0 && !hasGold;
+  const canGoldHere = bal.goldLeft > 0 && !hasGold && !hasPoint && Boolean(team.gold);
+  const left = canPoint || canGoldHere ? 1 : 0;
   const pid = `${m.id}-${side}`;
   const sel = (name, selected) => h`<select name="${name}" required aria-label="${name === 'p1' ? 'First player' : 'Second player'}"><option value="">Choose player</option>${team.regulars.map((p) => h`<option value="${p.id}"${selected === p.id ? raw(' selected') : ''}>${p.name} · ${LEVEL_LABEL[p.level]}${p.gender ? ` · ${p.gender}` : ''}</option>`)}</select>`;
 
@@ -89,7 +93,7 @@ function teamBlock(state, m, side) {
       <p class="dm-team-name">${teamMark(team)}<strong>${team.name}</strong></p>
       <p class="dm-pair">${l ? h`<span>${l.player1?.name} / ${l.player2?.name}</span>` : h`<span class="is-missing">No lineup yet</span>`}
         <button type="button" class="pill" data-toggle="lu-${pid}" aria-expanded="false">${l ? 'Edit' : 'Add'}</button>
-        ${ko ? '' : left > 0 ? h`<button type="button" class="pill pill-gold" data-toggle="tk-${pid}" aria-expanded="false">★ Ticket <small>${left} left</small></button>` : h`<span class="pill is-off">★ None left</span>`}
+        ${ko ? '' : left > 0 ? h`<button type="button" class="pill pill-gold" data-toggle="tk-${pid}" aria-expanded="false">★ Ticket <small>Gold ${bal.goldLeft} · Point ${bal.pointLeft}</small></button>` : h`<span class="pill is-off">★ None available</span>`}
       </p>
       ${mine.length ? h`<ul class="dm-tix" role="list">${mine.map((t) => {
         const out = state.playerById.get(t.player_out);
@@ -112,17 +116,17 @@ function teamBlock(state, m, side) {
 
     ${ko || left <= 0 ? '' : h`<form class="dm-panel dm-ticket" id="tk-${pid}" method="post" action="/desk/match/${m.id}/ticket" hidden>
       <input type="hidden" name="team" value="${team.id}">
-      <p class="panel-title">Golden Ticket for ${team.name} <small>${left} of ${TICKETS_PER_TEAM} left</small></p>
-      <div class="ticket-option">
+      <p class="panel-title">Tickets for ${team.name} <small>Gold Player ${bal.goldLeft} of ${GOLD_DEPLOYMENTS} · Golden Point ${bal.pointLeft} of ${GOLDEN_POINTS}</small></p>
+      ${canPoint ? h`<div class="ticket-option">
         <button class="button small lime" type="submit" name="use" value="point">Golden Point</button>
-        <span>Wins a deuce point outright.</span>
-      </div>
-      ${hasGold ? '' : h`<div class="ticket-option is-stack">
-        <span><strong>${team.gold ? `${team.gold.name} ★` : 'Gold Player'}</strong> plays instead of:</span>
+        <span>Called at 40–40: wins the point and the game. If both schools call it, record only the school that won the rock-paper-scissors.</span>
+      </div>` : h`<div class="ticket-option"><span class="is-missing">${hasGold ? 'No Golden Point here: this school has a Gold Player in this match.' : 'No Golden Points left.'}</span></div>`}
+      ${canGoldHere ? h`<div class="ticket-option is-stack">
+        <span><strong>${team.gold.name} ★</strong> plays instead of (same gender only):</span>
         ${l ? h`<div class="ticket-buttons">${[l.player1, l.player2].filter(Boolean).map((p) => h`<button class="button small lime" type="submit" name="use" value="out:${p.id}">${p.name}</button>`)}</div>
-          <div class="ticket-when"><label><input type="radio" name="timing" value="start" checked> From the start</label><label><input type="radio" name="timing" value="after_g2"> After game 2</label></div>`
+          <div class="ticket-when"><label><input type="radio" name="timing" value="start" checked> Before the first serve</label><label><input type="radio" name="timing" value="after_g2"> After game 2</label></div>`
           : h`<span class="is-missing">Add the pair first.</span>`}
-      </div>`}
+      </div>` : h`<div class="ticket-option"><span class="is-missing">${hasGold ? 'Gold Player already in this match.' : hasPoint ? 'No Gold Player here: this school used a Golden Point in this match.' : !team.gold ? 'This school has no approved Gold Player.' : 'No Gold Player deployments left.'}</span></div>`}
     </form>`}
   </div>`;
 }
