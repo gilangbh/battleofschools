@@ -2,146 +2,173 @@ import { h, raw, layout, teamMark, categoryTag, pairNames, showdownTitle, ICON, 
 import { CATEGORY_LABEL, STAGE_LABEL, matchWinner, isKnockout } from '../rules.js';
 import { fmtPoints } from '../activity.js';
 
-const PLACE_LABEL = { qualified: 'Semifinal place', provisional: 'In the top two for now', tied: 'Level on points: committee decides' };
-const pairLine = (names) => (names ? h`<small class="pair">${names.join(' / ')}</small>` : '');
+const PLACE_LABEL = { qualified: 'Semifinal place', provisional: 'Top two for now', tied: 'Level on points: committee decides' };
+const SHORT_CAT = { men: 'Men’s', women: 'Women’s', open: 'Open' };
+const courtNumber = (court) => (String(court).match(/\d+/) || [''])[0];
+const pairLine = (names) => (names ? h`<small class="ls-pair">${names.join(' / ')}</small>` : '');
 
-function scoreCell(state, m, side) {
-  const score = side === 'a' ? m.score_a : m.score_b;
-  const tb = side === 'a' ? m.tb_a : m.tb_b;
-  const lead = matchWinner(m) === side;
-  const value = score == null ? '–' : score;
-  return h`<td class="${lead ? 'tournament-leading' : ''}"><span class="score-num">${value}${tb != null ? h`<sup>${tb}</sup>` : ''}</span>${pairLine(pairNames(state, m, side))}</td>`;
-}
+// ---------- Live scores page (phones and desktops) ----------
 
-function fixtureMeta(sd) {
-  const bits = [sd.start_time, sd.court].filter(Boolean);
-  return bits.length ? h`<p class="fixture-meta">${bits.join(' · ')}</p>` : '';
-}
-
-/** One school-v-school card, in the same table layout as the 2025 results on battleofschools.id. */
-export function fixtureCard(state, sd) {
+/** One school-v-school card: the two schools with the running total, then the three category matches. */
+export function fixtureCard(state, sd, title = null) {
   const s = sd.summary;
   const ko = isKnockout(sd.stage);
-  const teamHead = (team) => h`<span class="tournament-fixture-team">${teamMark(team)}<span>${team ? team.name : 'To be decided'}</span></span>`;
   const totalA = ko ? s.catsA : s.gamesA;
   const totalB = ko ? s.catsB : s.gamesB;
-  return h`<li class="tournament-fixture" data-teams="${[sd.team_a, sd.team_b].filter(Boolean).join(' ')}">
-  ${fixtureMeta(sd)}
-  <table class="tournament-fixture-score">
-    <thead><tr>
-      <th scope="col">${teamHead(sd.a)}</th>
-      <th scope="col">${ko ? 'Games' : 'Games won'}</th>
-      <th scope="col">${teamHead(sd.b)}</th>
-    </tr></thead>
-    <tbody>
-      ${sd.matches.map((m) => h`<tr class="${m.status === 'live' ? 'is-live' : ''}">
-        ${scoreCell(state, m, 'a')}
-        <th scope="row">${categoryTag(m.category)}${m.status === 'live' ? h`<span class="live-pill">On court${m.court ? h` · ${m.court}` : ''}</span>` : ''}</th>
-        ${scoreCell(state, m, 'b')}
-      </tr>`)}
-    </tbody>
-    ${s.done > 0 ? h`<tfoot><tr>
-      <td class="${totalA > totalB ? 'tournament-leading' : ''}">${totalA}</td>
-      <th scope="row">${ko ? h`Categories won<small class="ko-games">Games ${s.gamesA}–${s.gamesB}</small>${s.winner ? h`<small class="ko-games">Winner: ${(s.winner === 'a' ? sd.a : sd.b)?.name}</small>` : ''}` : s.complete ? 'Total' : 'Total so far'}</th>
-      <td class="${totalB > totalA ? 'tournament-leading' : ''}">${totalB}</td>
-    </tr></tfoot>` : ''}
+  const status = s.live ? 'live' : s.complete ? 'done' : s.done ? 'part' : 'next';
+  const chip = { live: 'Live', done: 'Final', part: 'In progress', next: sd.start_time || 'Upcoming' }[status];
+  const lead = totalA === totalB ? null : totalA > totalB ? 'a' : 'b';
+  const side = (team, key) => h`<div class="ls-fx-team${s.done && lead === key ? ' is-lead' : ''}${ko && s.winner === key ? ' is-winner' : ''}">${teamMark(team)}<strong>${team ? team.name : 'To be decided'}</strong></div>`;
+  const cell = (m, key) => {
+    const score = key === 'a' ? m.score_a : m.score_b;
+    const tb = key === 'a' ? m.tb_a : m.tb_b;
+    return h`<td class="${matchWinner(m) === key ? 'is-lead' : ''}"><span class="ls-num"${m.status === 'live' ? raw(` data-k="f${m.id}${key}"`) : ''}>${score == null ? '–' : score}${tb != null ? h`<sup>${tb}</sup>` : ''}</span>${pairLine(pairNames(state, m, key))}</td>`;
+  };
+  const meta = [title, status === 'next' ? null : sd.start_time, sd.court].filter(Boolean);
+  return h`<li class="ls-fx is-${status}" data-teams="${[sd.team_a, sd.team_b].filter(Boolean).join(' ')}">
+  <header class="ls-fx-head"><span>${meta.join(' · ') || 'Time and court to be confirmed'}</span><span class="ls-chip is-${status}">${chip}</span></header>
+  <div class="ls-fx-top">
+    ${side(sd.a, 'a')}
+    <div class="ls-fx-total">${s.done ? h`<b class="${lead === 'a' ? 'is-lead' : ''}">${totalA}</b><i>–</i><b class="${lead === 'b' ? 'is-lead' : ''}">${totalB}</b>` : h`<i class="ls-v">v</i>`}<small>${s.done ? (ko ? 'Categories' : s.complete ? 'Games' : 'Games so far') : ''}</small></div>
+    ${side(sd.b, 'b')}
+  </div>
+  <table class="ls-fx-cats">
+    <caption class="visually-hidden">${sd.a ? sd.a.name : 'To be decided'} v ${sd.b ? sd.b.name : 'To be decided'}, by category</caption>
+    <tbody>${sd.matches.map((m) => h`<tr class="${m.status === 'live' ? 'is-live' : ''}">
+      ${cell(m, 'a')}
+      <th scope="row"><span class="ls-cat"><span class="tournament-sport-mark" aria-hidden="true">${ICON[m.category]}</span>${CATEGORY_LABEL[m.category]}</span>${m.status === 'live' ? h`<span class="ls-oncourt">On court${m.court ? h` · ${m.court}` : ''}</span>` : ''}</th>
+      ${cell(m, 'b')}
+    </tr>`)}</tbody>
   </table>
+  ${ko && s.winner ? h`<p class="ls-fx-foot">Winner: <b>${(s.winner === 'a' ? sd.a : sd.b)?.name}</b> · games ${s.gamesA}–${s.gamesB}</p>` : ''}
 </li>`;
 }
 
 function liveCard(state, m) {
   const sd = m.sd;
-  const side = (team, s) => {
-    const score = s === 'a' ? m.score_a : m.score_b;
-    return h`<div class="live-side">${teamMark(team)}<div class="live-team"><strong>${team ? team.name : 'TBD'}</strong>${pairLine(pairNames(state, m, s))}</div><span class="live-score" data-k="m${m.id}${s}">${score == null ? 0 : score}</span></div>`;
-  };
-  return h`<li class="live-card">
-  <p class="live-card-head"><span class="live-court">${m.court || 'Court to be confirmed'}</span><span>${showdownTitle(sd)}</span></p>
-  <p class="live-card-cat">${categoryTag(m.category)}</p>
+  const a = m.score_a ?? 0;
+  const b = m.score_b ?? 0;
+  const lead = a === b ? null : a > b ? 'a' : 'b';
+  const side = (team, key) => h`<div class="ls-live-side${lead === key ? ' is-lead' : ''}">${teamMark(team)}
+    <div class="ls-live-team"><strong>${team ? team.name : 'To be decided'}</strong>${pairLine(pairNames(state, m, key))}</div>
+    <span class="ls-live-score" data-k="m${m.id}${key}">${key === 'a' ? a : b}</span></div>`;
+  return h`<li class="ls-live" data-teams="${[sd.team_a, sd.team_b].filter(Boolean).join(' ')}">
+  <header class="ls-live-head"><span class="ls-live-num">${courtNumber(m.court) || '–'}</span>
+    <div><b>${m.court || 'Court to be confirmed'}</b><span>${SHORT_CAT[m.category]} doubles · ${showdownTitle(sd)}</span></div>
+    <span class="ls-chip is-live">Live</span></header>
   ${side(sd.a, 'a')}${side(sd.b, 'b')}
 </li>`;
 }
 
-function standingsTable(group, rows, showChallenge) {
-  return h`<table class="tournament-table">
-  <caption>Group ${group}</caption>
+/** The next showdowns that have not started, earliest round first. Shown when no court is in play. */
+function upNext(state) {
+  const waiting = state.showdowns.filter((sd) => sd.a && sd.b && !sd.summary.done && !sd.summary.live);
+  if (!waiting.length) return [];
+  const round = waiting[0].round;
+  return waiting.filter((sd) => sd.round === round);
+}
+
+function nextCard(sd) {
+  return h`<li class="ls-next" data-teams="${sd.team_a} ${sd.team_b}">
+  <p class="ls-next-meta"><b>${sd.start_time || 'Time to be confirmed'}</b><span>${sd.court || 'Court to be confirmed'}</span></p>
+  <p class="ls-next-teams">${teamMark(sd.a)}<strong>${sd.a.name}</strong><i>v</i>${teamMark(sd.b)}<strong>${sd.b.name}</strong></p>
+</li>`;
+}
+
+function standingsTable(group, rows, showActivities) {
+  const started = rows.some((r) => r.played > 0 || r.total > 0);
+  return h`<div class="ls-group"><table class="ls-table">
+  <caption><span>Group ${group}</span></caption>
   <thead><tr>
-    <th scope="col">School</th><th scope="col">W–L</th><th scope="col">Games</th>
-    ${showChallenge ? h`<th scope="col">Activities</th>` : ''}<th scope="col">Total</th>
+    <th scope="col" class="ls-rank"><span class="visually-hidden">Rank</span></th><th scope="col">School</th><th scope="col">W–L</th><th scope="col">Games</th>
+    ${showActivities ? h`<th scope="col">Activities</th>` : ''}<th scope="col">Points</th>
   </tr></thead>
-  <tbody>${rows.map((r) => h`<tr class="${r.place === 'qualified' || r.place === 'provisional' ? 'tournament-qualified' : r.place === 'tied' ? 'is-tied' : ''}" data-teams="${r.team.id}">
-    <th scope="row"><span class="tournament-table-team">${teamMark(r.team)}<span>${r.team.name}${r.place ? h`<small>${PLACE_LABEL[r.place]}</small>` : ''}</span></span></th>
+  <tbody>${rows.map((r) => h`<tr class="${r.place === 'qualified' || r.place === 'provisional' ? 'is-q' : r.place === 'tied' ? 'is-tied' : ''}" data-teams="${r.team.id}">
+    <td class="ls-rank">${started ? r.rank : '–'}</td>
+    <th scope="row"><span class="ls-school">${teamMark(r.team)}<span>${r.team.name}${r.place ? h`<small>${PLACE_LABEL[r.place]}</small>` : ''}</span></span></th>
     <td>${r.won}–${r.lost}</td><td>${r.games}</td>
-    ${showChallenge ? h`<td>${fmtPoints(r.yard + r.bonus)}</td>` : ''}<td><strong>${fmtPoints(r.total)}</strong></td>
+    ${showActivities ? h`<td>${fmtPoints(r.yard + r.bonus)}</td>` : ''}<td class="ls-total" data-k="t${r.team.id}">${fmtPoints(r.total)}</td>
   </tr>`)}</tbody>
-</table>`;
+</table></div>`;
 }
 
 function champion(state) {
   const final = state.showdowns.find((s) => s.stage === 'final');
-  if (!final || !final.summary.winner || !final.summary.complete) return '';
+  if (!final || !final.summary.winner) return '';
   const win = final.summary.winner === 'a' ? final.a : final.b;
   const lose = final.summary.winner === 'a' ? final.b : final.a;
-  return h`<ol class="tournament-podium champion-podium">
-  <li><div class="tournament-place place-1"><span class="tournament-place-top"><span class="tournament-place-number">1</span>${teamMark(win)}</span><span class="tournament-place-label"><span class="tournament-sport-mark">${ICON.trophy}</span>2026 Champion</span><strong>${win.name}</strong><small>${win.school}</small></div></li>
-  <li><div class="tournament-place place-2"><span class="tournament-place-top"><span class="tournament-place-number">2</span>${teamMark(lose)}</span><span class="tournament-place-label">Runner-up</span><strong>${lose.name}</strong><small>${lose.school}</small></div></li>
-</ol>`;
+  return h`<section class="ls-champion" aria-label="Champion">
+  <div class="ls-champion-main">${teamMark(win)}<div><p class="ls-champion-label"><span class="tournament-sport-mark">${ICON.trophy}</span>2026 Champion</p><strong>${win.name}</strong><small>${win.school}</small></div></div>
+  <div class="ls-champion-second">${teamMark(lose)}<div><p class="ls-champion-label">Runner-up</p><strong>${lose.name}</strong></div></div>
+</section>`;
 }
 
 /** The part of the public page that is swapped in place whenever a score changes. */
 export function publicPartial(state) {
-  const showChallenge = state.yardStarted;
-  const groupRounds = [...new Set(state.showdowns.filter((s) => s.stage === 'group').map((s) => s.round))];
-  const koWithTeams = state.knockout.filter((sd) => sd.a && sd.b);
+  const showActivities = state.yardStarted;
+  const group = state.showdowns.filter((s) => s.stage === 'group');
+  const groupRounds = [...new Set(group.map((s) => s.round))];
   const anyResults = state.allMatches.some((m) => m.status !== 'scheduled');
+  const groupMatches = group.flatMap((s) => s.matches);
+  const finished = groupMatches.filter((m) => m.status === 'done').length;
   // Open the round that is in play; before the first score, open round 1.
-  const activeRound = (() => {
-    for (const r of groupRounds) {
-      const sds = state.showdowns.filter((s) => s.stage === 'group' && s.round === r);
-      if (sds.some((s) => !s.summary.complete)) return r;
-    }
-    return groupRounds[groupRounds.length - 1];
-  })();
+  const activeRound = groupRounds.find((r) => group.some((s) => s.round === r && !s.summary.complete)) ?? groupRounds[groupRounds.length - 1];
+  const next = state.live.length ? [] : upNext(state);
+  const stage = state.knockout.some((sd) => sd.a && sd.b && (sd.summary.done || sd.summary.live))
+    ? 'Finals' : groupRounds.length ? (finished === groupMatches.length && finished ? 'Group stage finished' : `Round ${activeRound} of ${groupRounds.length}`) : 'Before the draw';
+  const semis = state.knockout.filter((sd) => sd.stage === 'semi');
+  const final = state.knockout.find((sd) => sd.stage === 'final');
+  const pct = groupMatches.length ? Math.round((finished / groupMatches.length) * 100) : 0;
 
   return h`
+<div class="ls-pulse" aria-label="Tournament progress">
+  <div class="ls-stat${state.live.length ? ' is-live' : ''}"><b data-k="s-live">${state.live.length}</b><span>on court now</span></div>
+  <div class="ls-stat"><b>${stage}</b><span>${state.settings.event_date}</span></div>
+  <div class="ls-stat is-bar"><b data-k="s-done">${finished}<small> of ${groupMatches.length || 75}</small></b><span>group matches finished</span><i class="ls-bar" aria-hidden="true"><i style="width:${pct}%"></i></i></div>
+</div>
+
 ${champion(state)}
+
 <section id="live" aria-labelledby="live-h">
-  <h2 id="live-h">On court now</h2>
+  <h2 id="live-h" class="ls-h"><span>${state.live.length ? 'On court now' : next.length ? 'Up next' : 'On court'}</span>${!state.live.length && next.length ? h`<small>${showdownTitle(next[0])}</small>` : ''}</h2>
   ${state.live.length
-    ? h`<ul class="live-grid" role="list">${state.live.map((m) => liveCard(state, m))}</ul>`
-    : h`<p class="quiet-note">${anyResults ? 'No matches are on court right now.' : `Matches start on ${state.settings.event_date} at ${state.settings.venue}. Scores appear here as each match finishes.`}</p>`}
+    ? h`<ul class="ls-live-grid" role="list">${state.live.map((m) => liveCard(state, m))}</ul>`
+    : next.length
+      ? h`<ul class="ls-next-grid" role="list">${next.map(nextCard)}</ul>`
+      : h`<p class="quiet-note">${anyResults ? 'No matches are on court right now.' : `Matches start on ${state.settings.event_date} at ${state.settings.venue}. Scores appear here as they happen.`}</p>`}
 </section>
 
 <section id="standings" aria-labelledby="standings-h">
-  <h2 id="standings-h">Group standings</h2>
+  <h2 id="standings-h" class="ls-h"><span>Group standings</span></h2>
   ${state.groupsSet
-    ? h`<p class="footnote">One point per game won, plus School Yard activity points${showChallenge ? ' as they come in' : ''} and the School Spirit bonus. Top two in each group reach the semifinals. Places are confirmed when the group matches and all activity results are in.</p>
-      <div class="tournament-groups">${['A', 'B'].filter((g) => state.standings[g]).map((g) => standingsTable(g, state.standings[g], showChallenge))}</div>`
+    ? h`<div class="ls-groups">${['A', 'B'].filter((g) => state.standings[g]).map((g) => standingsTable(g, state.standings[g], showActivities))}</div>
+      <p class="footnote ls-note"><span class="ls-key"></span>Top two in each group reach the semifinals. One point per game won, plus School Yard activity points and the School Spirit bonus. Places are confirmed when the group matches and all activity results are in.</p>`
     : h`<p class="quiet-note">Groups are set at the live matchup draw on 25 November.</p>
       <ul class="school-chips" role="list">${state.teams.map((t) => h`<li>${teamMark(t)}<span>${t.name}</span></li>`)}</ul>`}
 </section>
 
 ${groupRounds.length ? h`<section id="matches" aria-labelledby="matches-h">
-  <h2 id="matches-h">Group matches</h2>
-  <div class="tournament-rounds">
+  <h2 id="matches-h" class="ls-h"><span>Group matches</span></h2>
+  <div class="ls-rounds">
     ${groupRounds.map((r) => {
-      const sds = state.showdowns.filter((s) => s.stage === 'group' && s.round === r);
+      const sds = group.filter((s) => s.round === r);
       const done = sds.filter((s) => s.summary.complete).length;
-      return h`<details class="tournament-round" data-key="round-${r}"${r === activeRound ? raw(' open') : ''}>
-        <summary>Round ${r} <span class="round-count">${done}/${sds.length} finished</span></summary>
-        <ul class="tournament-fixtures" role="list">${sds.map((sd) => fixtureCard(state, sd))}</ul>
+      const live = sds.some((s) => s.summary.live);
+      return h`<details class="ls-round" data-key="round-${r}"${r === activeRound ? raw(' open') : ''}>
+        <summary><b>Round ${r}</b><span>${sds[0].start_time || ''}</span>${live ? h`<span class="ls-chip is-live">Live</span>` : ''}<em>${done === sds.length ? 'Finished' : `${done} of ${sds.length} finished`}</em></summary>
+        <ul class="ls-fixtures" role="list">${sds.map((sd) => fixtureCard(state, sd))}</ul>
       </details>`;
     })}
   </div>
 </section>` : ''}
 
-${koWithTeams.length ? h`<section id="knockout" aria-labelledby="knockout-h">
-  <h2 id="knockout-h">Semifinals and final</h2>
-  <p>The first school to win two categories wins. Each category is first to six games, with a tiebreak at 5–5. Small numbers show tiebreak points.</p>
-  ${koWithTeams.map((sd) => h`<h3 class="ko-title">${showdownTitle(sd)}</h3><ul class="tournament-fixtures ko-fixtures" role="list">${fixtureCard(state, sd)}</ul>`)}
-</section>` : state.knockout.length ? h`<section id="knockout" aria-labelledby="knockout-h">
-  <h2 id="knockout-h">Semifinals and final</h2>
-  <p class="quiet-note">The top two schools in each group meet in the semifinals once the group stage is finished.</p>
+${state.knockout.length ? h`<section id="knockout" aria-labelledby="knockout-h">
+  <h2 id="knockout-h" class="ls-h"><span>Semifinals and final</span></h2>
+  <p class="footnote ls-note">The first school to win two categories wins. Each category is first to six games, with a tiebreak at 5–5. Small numbers show tiebreak points.</p>
+  <div class="ls-bracket">
+    <ul class="ls-fixtures ls-semis" role="list">${semis.map((sd) => fixtureCard(state, sd, `${showdownTitle(sd)} · ${sd.slot === 0 ? 'A1 v A2' : 'B1 v B2'}`))}</ul>
+    ${final ? h`<ul class="ls-fixtures ls-final" role="list">${fixtureCard(state, final, 'Final')}</ul>` : ''}
+  </div>
 </section>` : ''}
 `;
 }
@@ -155,29 +182,30 @@ function sponsorStrip() {
 
 export function publicPage(state, user) {
   const body = h`
-<main id="main" class="tournament-results">
-  <div class="tournament-hero">
-    <div class="wrap">
-      <p class="eyebrow">${state.settings.event_title} · ${state.settings.event_date} · ${state.settings.venue}</p>
-      <div class="tournament-heading"><h1>Live scores</h1><span class="conn" id="conn" data-state="connecting">Connecting…</span></div>
+<main id="main" class="tournament-results ls">
+  <div class="ls-hero">
+    <div class="wrap ls-hero-in">
+      <div>
+        <p class="eyebrow">${state.settings.event_title} · ${state.settings.venue}</p>
+        <h1>Live <span>scores</span></h1>
+      </div>
+      <span class="conn ls-conn" id="conn" data-state="connecting">Connecting…</span>
     </div>
   </div>
-  <nav class="tournament-nav" aria-label="Sections"><div class="wrap">
+  <nav class="tournament-nav ls-nav" aria-label="Sections"><div class="wrap">
     <a href="#live">On court</a><a href="#standings">Standings</a><a href="#matches">Matches</a><a href="#knockout">Finals</a>
+    <label class="ls-follow" for="team-filter"><span>Follow</span><select id="team-filter"><option value="">All schools</option>${state.teams.map((t) => h`<option value="${t.id}">${t.name}</option>`)}</select></label>
   </div></nav>
   <div class="wrap tournament-body">
     ${sponsorStrip()}
-    <div class="follow"><label for="team-filter">Follow</label><select id="team-filter"><option value="">All schools</option>${state.teams.map((t) => h`<option value="${t.id}">${t.name}</option>`)}</select></div>
     <div id="live-region" data-src="/partial/public">${publicPartial(state)}</div>
   </div>
 </main>`;
-  return layout({ title: 'Live scores', body, user, scripts: ['/js/live.js'], styles: ['/css/sponsors.css'], active: 'scores', mediaCredit: true });
+  return layout({ title: 'Live scores', body, user, scripts: ['/js/live.js'], styles: ['/css/sponsors.css', '/css/scores.css'], active: 'scores', mediaCredit: true });
 }
 
 // ---------- TV scoreboard ----------
 
-const SHORT_CAT = { men: 'Men’s', women: 'Women’s', open: 'Open' };
-const courtNumber = (court) => (String(court).match(/\d+/) || [''])[0];
 
 /** The two people on court for one side, with portraits. Null until both lineups are in. */
 function onCourt(state, m, side) {
