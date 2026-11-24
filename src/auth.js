@@ -53,6 +53,14 @@ function readCookie(req) {
   return null;
 }
 
+/** Cancels every sign-in link and signs out every device except the one making the request. */
+export function revokeAllAccess(req) {
+  const mine = readCookie(req);
+  const links = run('DELETE FROM login_tokens').changes;
+  const sessions = run('DELETE FROM sessions WHERE hash != ?', mine ? sha(mine) : '').changes;
+  return { links: Number(links), sessions: Number(sessions) };
+}
+
 /** Attach req.user when a valid session cookie is present. */
 export function sessionMiddleware(req, res, next) {
   req.user = null;

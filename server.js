@@ -9,12 +9,12 @@ import {
 import { loadDemo } from './src/demo.js';
 import {
   sessionMiddleware, sameOrigin, requireRole, createLoginToken, peekLoginToken, consumeLoginToken,
-  startSession, endSession, sendLoginEmail, mailConfigured, rateLimited, isProd, ADMIN_LINK_MS,
+  startSession, endSession, revokeAllAccess, sendLoginEmail, mailConfigured, rateLimited, isProd, ADMIN_LINK_MS,
 } from './src/auth.js';
 import {
   validateFinalScore, validateRunningScore, validateLineup, isKnockout, TICKETS_PER_TEAM, STAGE_LABEL,
 } from './src/rules.js';
-import { publicPage, publicPartial, tvPage, tvPartial, loginPage, confirmLoginPage } from './src/views/public.js';
+import { publicPage, publicPartial, tvPage, tvPartial, loginPage, confirmLoginPage, holdingPage } from './src/views/public.js';
 import { captainPage } from './src/views/captain.js';
 import { deskPage, deskShowdownPage, challengePage } from './src/views/desk.js';
 import { adminPage } from './src/views/admin.js';
@@ -27,6 +27,29 @@ app.use(express.urlencoded({ extended: false, limit: '200kb', parameterLimit: 50
 app.use(express.static(path.join(process.cwd(), 'public'), { maxAge: isProd ? '1h' : 0 }));
 app.use(sessionMiddleware);
 app.use(sameOrigin);
+
+// ---------- Who may see the tournament ----------
+// 'staff': admin and desk only (private staging). 'captains': captains as well. 'public': everyone.
+const VISIBILITY = ['staff', 'captains', 'public'];
+const visibility = () => { const v = getSetting('visibility', 'staff'); return VISIBILITY.includes(v) ? v : 'staff'; };
+
+app.get('/healthz', (req, res) => res.json({ ok: true }));
+// The event address is /bos2026; the app itself lives at the root of the domain.
+app.all(['/bos2026', '/bos2026/*'], (req, res) => res.redirect(302, req.originalUrl.replace(/^\/bos2026\/?/, '/')));
+
+app.use((req, res, next) => {
+  const v = visibility();
+  if (v === 'public') return next();
+  const p = req.path;
+  if (p === '/login' || p === '/logout' || p.startsWith('/auth/')) return next();
+  const role = req.user?.role;
+  if (role === 'admin' || role === 'desk') return next();
+  if (role === 'captain' && v === 'captains') return next();
+  res.set('Cache-Control', 'no-store');
+  if (role === 'captain') return res.status(403).send(holdingPage(req.user));
+  if (req.method === 'GET' && !p.startsWith('/partial/') && p !== '/events') return res.redirect(302, `/login?next=${encodeURIComponent(req.originalUrl)}`);
+  res.status(401).send('Sign in first.');
+});
 
 // ---------- Live updates (server-sent events) ----------
 const clients = new Set();
@@ -91,8 +114,6 @@ app.get('/tv', async (req, res, next) => {
     res.send(tvPage(loadState(), qr, url));
   } catch (e) { next(e); }
 });
-app.get('/healthz', (req, res) => res.json({ ok: true }));
-
 // ---------- Sign in ----------
 app.get('/login', (req, res) => {
   if (req.user) return res.redirect(homeFor(req.user));
@@ -387,7 +408,7 @@ const admin = requireRole('admin');
 
 app.get('/admin', admin, (req, res) => {
   noStore(res);
-  res.send(adminPage(loadState(), req.user, { tab: req.query.tab, users: all('SELECT * FROM users ORDER BY role, team_id, email'), origin: origin(req), query: req.query }));
+  res.send(adminPage(loadState(), req.user, { tab: req.query.tab, users: all('SELECT * FROM users ORDER BY role, team_id, email'), origin: origin(req), query: req.query, visibility: visibility() }));
 });
 
 app.post('/admin/groups', admin, (req, res) => {
@@ -480,7 +501,20 @@ app.post('/admin/users/links', admin, (req, res) => {
   const users = all('SELECT * FROM users ORDER BY role, team_id, email');
   const links = users.map((u) => ({ user: u, url: `${origin(req)}/auth/${createLoginToken(u.id, ADMIN_LINK_MS)}` }));
   noStore(res);
-  res.send(adminPage(loadState(), req.user, { tab: 'people', users, origin: origin(req), query: {}, links }));
+  res.send(adminPage(loadState(), req.user, { tab: 'people', users, origin: origin(req), query: {}, links, visibility: visibility() }));
+});
+
+app.post('/admin/security/revoke', admin, (req, res) => {
+  const n = revokeAllAccess(req);
+  back(res, '/admin?tab=people', 'msg', `Cancelled ${n.links} sign-in link${n.links === 1 ? '' : 's'} and signed out ${n.sessions} device${n.sessions === 1 ? '' : 's'}. Only this device is still signed in.`);
+});
+
+// A full copy of the tournament data for backup. Logins, links and sessions are left out.
+app.get('/admin/export.json', admin, (req, res) => {
+  noStore(res);
+  res.set('Content-Disposition', `attachment; filename="bos-scores-${new Date().toISOString().slice(0, 16).replace(/[:T]/g, '-')}.json"`);
+  const tables = ['settings', 'teams', 'players', 'showdowns', 'matches', 'lineups', 'tickets', 'stations', 'challenge'];
+  res.json({ exported_at: new Date().toISOString(), ...Object.fromEntries(tables.map((t) => [t, all(`SELECT * FROM ${t}`)])) });
 });
 
 app.post('/admin/users/:id/link', admin, (req, res) => {
@@ -532,6 +566,7 @@ app.post('/admin/settings', admin, (req, res) => {
   setSetting('venue', String(req.body.venue || '').trim().slice(0, 80));
   setSetting('courts', courts.join(', '));
   setSetting('public_url', url);
+  if (VISIBILITY.includes(req.body.visibility)) setSetting('visibility', req.body.visibility);
   back(res, '/admin?tab=settings', 'msg', 'Settings saved.');
 });
 
@@ -568,6 +603,8 @@ app.use((err, req, res, _next) => {
 const seeded = seedIfEmpty();
 if (seeded) console.log('Loaded schools and players from seed/schools.json');
 backfillPhotos();
+// Existing databases start private: the organizer opens the site from Admin > Settings.
+if (!getSetting('visibility')) setSetting('visibility', 'staff');
 ensureAdmin(process.env.ADMIN_EMAIL);
 // Placeholder logins use @bos.local; rename the ones first created under another ending.
 run("UPDATE users SET email = replace(email, '@bos.invalid', '@bos.local') WHERE email LIKE '%@bos.invalid' AND replace(email, '@bos.invalid', '@bos.local') NOT IN (SELECT email FROM users)");

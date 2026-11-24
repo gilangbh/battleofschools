@@ -80,6 +80,7 @@ ${links ? h`<section class="links-box"><h2>Sign-in links</h2>
   <p class="footnote">Captains manage their own school’s lineups. Desk staff enter scores. “Link” creates a sign-in link you can send yourself, for example by WhatsApp.</p>
   <div class="form-actions">
     <form method="post" action="/admin/users/links"><button class="button small" type="submit">Create links for everyone</button></form>
+    <form method="post" action="/admin/security/revoke" data-confirm="Cancel every unused sign-in link and sign out every other device? Everyone will need a new link."><button class="button small ghost" type="submit">Cancel all links and sign everyone out</button></form>
     <form method="post" action="/admin/users/seed"><button class="button small ghost" type="submit">Add missing desk and captain logins</button></form>
   </div>
   <div class="table-scroll"><table class="tournament-table admin-table">
@@ -140,9 +141,18 @@ function playersTab(state, teamId) {
 </section>`;
 }
 
-function settingsTab(state) {
+function settingsTab(state, visibility) {
   const s = state.settings;
   return h`
+<section><h2>Who can see the site</h2>
+  <form method="post" action="/admin/settings" class="visibility-form">
+    <input type="hidden" name="event_title" value="${s.event_title}"><input type="hidden" name="event_date" value="${s.event_date}"><input type="hidden" name="venue" value="${s.venue}"><input type="hidden" name="courts" value="${s.courts}"><input type="hidden" name="public_url" value="${s.public_url}">
+    ${[['staff', 'Admin and desk only', 'Everything is hidden, including the TV board. Captains who sign in see a “revealed at the briefing” page.'],
+      ['captains', 'Captains too', 'Captains can see fixtures and submit lineups. The public still sees nothing.'],
+      ['public', 'Everyone', 'Live scores and the TV board are open to all. Lineups stay hidden until both captains submit.']].map(([k, label, text]) => h`<label class="vis-option"><input type="radio" name="visibility" value="${k}"${visibility === k ? raw(' checked') : ''}><span><b>${label}</b>${text}</span></label>`)}
+    <button class="button" type="submit">Save</button>
+  </form>
+</section>
 <section><h2>Event</h2>
   <form method="post" action="/admin/settings" class="grid-form">
     <label>Event title <input type="text" name="event_title" value="${s.event_title}" required></label>
@@ -150,13 +160,17 @@ function settingsTab(state) {
     <label>Venue <input type="text" name="venue" value="${s.venue}"></label>
     <label>Courts, separated by commas <input type="text" name="courts" value="${s.courts}" required></label>
     <label>Public address for the QR code (leave empty to use the address this site is opened with) <input type="url" name="public_url" value="${s.public_url}" placeholder="https://scores.battleofschools.id"></label>
-    <button class="button" type="submit">Save settings</button>
+    <input type="hidden" name="visibility" value="${visibility}"><button class="button" type="submit">Save settings</button>
   </form>
 </section>
 <section><h2>Festival Challenge stations</h2>
   <p>Add the 2026 stations here. Their points are entered on the scoring desk and added to the group standings.</p>
   <ul class="plain-list">${state.stations.map((st) => h`<li>${st.name} <form method="post" action="/admin/stations/${st.id}/delete" class="inline-form" data-confirm="Remove ${st.name} and its points?"><button class="link-button" type="submit">Remove</button></form></li>`)}</ul>
   <form method="post" action="/admin/stations" class="inline-row"><label>Station name <input type="text" name="name" required></label><button class="button small" type="submit">Add station</button></form>
+</section>
+<section><h2>Backup</h2>
+  <p>Downloads every school, player, fixture, lineup, score, ticket and challenge point as one file. Logins and sign-in links are not included.</p>
+  <a class="button ghost" href="/admin/export.json">Download backup</a>
 </section>
 <section><h2>Test data</h2>
   <p>Use these before the event only. “Load demo data” fills random groups, lineups and scores so you can see every screen working. “Clear results” removes all scores, lineups, tickets and challenge points but keeps schools, players, logins and fixtures.</p>
@@ -167,14 +181,15 @@ function settingsTab(state) {
 </section>`;
 }
 
-export function adminPage(state, user, { tab, users, origin, query, links = null }) {
+export function adminPage(state, user, { tab, users, origin, query, links = null, visibility = 'public' }) {
   const current = TABS.some(([k]) => k === tab) ? tab : 'setup';
-  const content = current === 'setup' ? setupTab(state) : current === 'people' ? peopleTab(state, users, origin, links) : current === 'players' ? playersTab(state, query.team) : settingsTab(state);
+  const content = current === 'setup' ? setupTab(state) : current === 'people' ? peopleTab(state, users, origin, links) : current === 'players' ? playersTab(state, query.team) : settingsTab(state, visibility);
   const body = h`
 <main id="main" class="page">
   <div class="tournament-hero"><div class="wrap"><p class="eyebrow">Tournament staff</p><h1 class="page-title">Admin</h1></div></div>
   <nav class="tournament-nav" aria-label="Admin sections"><div class="wrap">${TABS.map(([k, label]) => h`<a href="/admin?tab=${k}"${k === current ? raw(' aria-current="page"') : ''}>${label}</a>`)}<a href="/tv">TV scoreboard ↗</a></div></nav>
   <div class="wrap tournament-body">
+    ${visibility === 'public' ? '' : h`<p class="lock-banner"><b>The site is private.</b> ${visibility === 'staff' ? 'Only admin and desk logins can see it.' : 'Captains can see it; the public cannot.'} <a href="/admin?tab=settings">Change</a></p>`}
     ${flash(query)}
     ${query.link ? h`<p class="flash flash-ok">Sign-in link (works once, valid seven days): <input class="copy-field" type="text" readonly value="${query.link}" aria-label="Sign-in link" onfocus="this.select()"></p>` : ''}
     ${content}

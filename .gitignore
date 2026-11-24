@@ -2,3 +2,6 @@ node_modules/
 data/
 .env
 *.log
+
+# Private organizer material: participant records, captain emails, unreleased draw
+references/

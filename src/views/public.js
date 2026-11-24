@@ -298,9 +298,21 @@ export function loginPage({ query, sentTo = null, devLink = null }) {
     <input id="email" name="email" type="email" autocomplete="email" required placeholder="you@example.com">
     <button class="button" type="submit">Email me a sign-in link <span aria-hidden="true">→</span></button>
   </form>
-  <p class="footnote">No password needed. Use the email your organizer registered for you. Spectators do not need to sign in: <a href="/">live scores are public</a>.</p>
+  <p class="footnote">No password needed. Use the email your organizer registered for you. Spectators do not need to sign in once live scores are open.</p>
 </main>`;
   return layout({ title: 'Sign in', body });
+}
+
+/** Shown to a signed-in captain while the matchups are still under wraps. */
+export function holdingPage(user) {
+  const body = h`
+<main id="main" class="wrap narrow page">
+  <p class="eyebrow">You are signed in</p>
+  <h1 class="page-title">Matchups are revealed at the captain briefing</h1>
+  <p style="margin-top:1rem">Your login works. Groups, fixtures and lineups open here once the organizer has revealed the matchups. Come back to this page after the briefing.</p>
+  <form method="post" action="/logout" class="stack-form"><button class="button ghost" type="submit">Sign out</button></form>
+</main>`;
+  return layout({ title: 'Not open yet', body });
 }
 
 export function confirmLoginPage(token, next) {

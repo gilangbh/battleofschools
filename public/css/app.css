@@ -407,3 +407,14 @@ tr.is-mine{box-shadow:inset 4px 0 0 var(--navy)}
 .name-edit{border:0;background:none;color:#6b7a8d;width:2.2rem;height:2.2rem;display:grid;place-items:center;border-radius:50%}
 .name-edit:hover{background:var(--navy);color:var(--cream)}
 .name-input{font-weight:600!important;font-size:1rem!important;min-width:9rem!important}
+
+/* Private-site banner and visibility choice */
+.lock-banner{background:var(--navy);color:var(--cream);padding:.7rem 1rem;font-size:.9rem;max-width:none!important;margin-bottom:1.25rem}
+.lock-banner b{color:var(--lime)}
+.visibility-form{display:grid;gap:.5rem;max-width:44rem}
+.vis-option{display:grid;grid-template-columns:auto 1fr;gap:.8rem;align-items:start;border:1px solid var(--line);padding:.8rem 1rem;font-weight:400;cursor:pointer}
+.vis-option:has(input:checked){border-color:var(--navy);background:#fffdf6;box-shadow:inset .3rem 0 0 var(--lime)}
+.vis-option input{width:20px;height:20px;margin:.2rem 0 0;accent-color:var(--navy)}
+.vis-option span{font-size:.88rem;color:#4d5e74;line-height:1.5}
+.vis-option b{display:block;font-size:1rem;color:var(--navy)}
+.visibility-form .button{justify-self:start;margin-top:.4rem}
