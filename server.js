@@ -80,6 +80,8 @@ const back = (res, url, kind, text) => {
   res.redirect(303, `${base}${base.includes('?') ? '&' : '?'}${kind}=${encodeURIComponent(text)}${hash ? `#${hash}` : ''}`);
 };
 const origin = (req) => `${req.protocol}://${req.get('host')}`;
+// Sign-in links and the QR code use the main address when one is set, whichever host the request came in on.
+const linkBase = (req) => (getSetting('public_url') || process.env.PUBLIC_URL || origin(req)).replace(/\/+$/, '');
 const intOrNull = (v) => (v === undefined || v === null || String(v).trim() === '' ? null : Number(v));
 const safeNext = (n) => (typeof n === 'string' && n.startsWith('/') && !n.startsWith('//') ? n : null);
 
@@ -130,7 +132,7 @@ app.post('/login', async (req, res) => {
   let devLink = null;
   if (user) {
     const token = createLoginToken(user.id);
-    const url = `${origin(req)}/auth/${token}${next ? `?next=${encodeURIComponent(next)}` : ''}`;
+    const url = `${linkBase(req)}/auth/${token}${next ? `?next=${encodeURIComponent(next)}` : ''}`;
     try {
       const sent = await sendLoginEmail(email, url);
       if (!sent && !isProd) devLink = url;
@@ -495,7 +497,7 @@ const admin = requireRole('admin');
 
 app.get('/admin', admin, (req, res) => {
   noStore(res);
-  res.send(adminPage(loadState(), req.user, { tab: req.query.tab, users: all('SELECT * FROM users ORDER BY role, team_id, email'), origin: origin(req), query: req.query, visibility: visibility() }));
+  res.send(adminPage(loadState(), req.user, { tab: req.query.tab, users: all('SELECT * FROM users ORDER BY role, team_id, email'), origin: linkBase(req), query: req.query, visibility: visibility() }));
 });
 
 app.post('/admin/groups', admin, (req, res) => {
@@ -586,9 +588,9 @@ app.post('/admin/users/seed', admin, (req, res) => {
 
 app.post('/admin/users/links', admin, (req, res) => {
   const users = all('SELECT * FROM users ORDER BY role, team_id, email');
-  const links = users.map((u) => ({ user: u, url: `${origin(req)}/auth/${createLoginToken(u.id, ADMIN_LINK_MS)}` }));
+  const links = users.map((u) => ({ user: u, url: `${linkBase(req)}/auth/${createLoginToken(u.id, ADMIN_LINK_MS)}` }));
   noStore(res);
-  res.send(adminPage(loadState(), req.user, { tab: 'people', users, origin: origin(req), query: {}, links, visibility: visibility() }));
+  res.send(adminPage(loadState(), req.user, { tab: 'people', users, origin: linkBase(req), query: {}, links, visibility: visibility() }));
 });
 
 app.post('/admin/security/revoke', admin, (req, res) => {
@@ -608,7 +610,7 @@ app.post('/admin/users/:id/link', admin, (req, res) => {
   const u = get('SELECT * FROM users WHERE id = ?', Number(req.params.id));
   if (!u) return res.status(404).send('Not found.');
   const token = createLoginToken(u.id, ADMIN_LINK_MS);
-  res.redirect(303, `/admin?tab=people&link=${encodeURIComponent(`${origin(req)}/auth/${token}`)}&msg=${encodeURIComponent(`Link created for ${u.email}.`)}`);
+  res.redirect(303, `/admin?tab=people&link=${encodeURIComponent(`${linkBase(req)}/auth/${token}`)}&msg=${encodeURIComponent(`Link created for ${u.email}.`)}`);
 });
 
 app.post('/admin/users/:id/delete', admin, (req, res) => {
