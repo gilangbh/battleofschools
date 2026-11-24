@@ -644,11 +644,5 @@ if (!isProd) {
 app.listen(PORT, () => {
   console.log(`Battle of Schools scores running at http://localhost:${PORT}`);
   if (!isProd) console.log('Local test logins: admin@bos.local, desk@bos.local, captain.acs@bos.local, captain.jis@bos.local (the sign-in link is shown on the login page)');
-  if (isProd && !mailConfigured() && process.env.ADMIN_EMAIL) {
-    // Without an email service the first admin has no way in, so print a sign-in link to the server log.
-    const adminUser = get('SELECT id FROM users WHERE email = ?', process.env.ADMIN_EMAIL.trim().toLowerCase());
-    const base = process.env.PUBLIC_URL || (process.env.RAILWAY_PUBLIC_DOMAIN ? `https://${process.env.RAILWAY_PUBLIC_DOMAIN}` : '');
-    if (adminUser && base) console.log(`Admin sign-in link (valid 7 days): ${base.replace(/\/$/, '')}/auth/${createLoginToken(adminUser.id, ADMIN_LINK_MS)}`);
-  }
   if (isProd && !mailConfigured()) console.log('Email is not configured (RESEND_API_KEY and MAIL_FROM). Sign-in links can only be created by an admin.');
 });

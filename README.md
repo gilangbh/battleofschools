@@ -73,7 +73,7 @@ Held for the committee, because no rule has been published:
   While private, every page, the TV board, the live fragments and the event stream need a sign-in.
 - Admin → Logins → *Cancel all links and sign everyone out* revokes every unused link and every other session.
 - Admin → Settings → *Download backup* saves all tournament data as JSON (no logins or links).
--  holds private organizer material and is not in git.
+- `references/` holds private organizer material and is not in git.
 
 ## Data
 
