@@ -5,7 +5,7 @@ import path from 'node:path';
 import QRCode from 'qrcode';
 import { all, get, run, tx, getSetting, setSetting } from './src/db.js';
 import {
-  seedIfEmpty, backfillPhotos, ensureAdmin, loadState, generateFixtures, fillKnockout, resetResults, createShowdown,
+  seedIfEmpty, backfillPhotos, ensureAdmin, loadState, loadAmericano, generateFixtures, fillKnockout, resetResults, createShowdown,
 } from './src/model.js';
 import { loadDemo } from './src/demo.js';
 import {
@@ -21,6 +21,9 @@ import { knockoutPage, knockoutPartial, summaryPage, summaryPartial } from './sr
 import { captainPage } from './src/views/captain.js';
 import { deskPage, deskShowdownPage } from './src/views/desk.js';
 import { activityPage } from './src/views/activity.js';
+import { awardPage, AWARD_STATIONS, AWARD_KINDS } from './src/views/award.js';
+import { americanoPage, americanoPartial, americanoTvPage } from './src/views/americano.js';
+import { schedule as amSchedule, validateScore as amValidate } from './src/americano.js';
 import { adminPage } from './src/views/admin.js';
 
 const PORT = Number(process.env.PORT) || 3000;
@@ -129,11 +132,13 @@ const tvScreen = (page) => async (req, res, next) => {
     const url = publicUrl(req);
     const qr = await QRCode.toString(url, { type: 'svg', margin: 0, errorCorrectionLevel: 'M', color: { dark: '#0D2B55', light: '#0000' } });
     noStore(res);
-    res.send(page(loadState(), qr, url, { secret: req.query.secret === '1' }));
+    res.send(page(loadState(), qr, url, { secret: req.query.secret === '1', am: loadAmericano() }));
   } catch (e) { next(e); }
 };
 app.get('/tv/knockout', tvScreen(knockoutPage));
 app.get('/tv/summary', tvScreen(summaryPage));
+app.get('/tv/americano', tvScreen(americanoTvPage));
+app.get('/partial/tv-americano', (req, res) => { noStore(res); res.send(String(americanoPartial(loadAmericano()))); });
 app.get('/partial/tv-knockout', (req, res) => { noStore(res); res.send(String(knockoutPartial(loadState()))); });
 app.get('/partial/tv-summary', (req, res) => { noStore(res); res.send(String(summaryPartial(loadState(), { secret: req.query.secret === '1' }))); });
 
@@ -457,28 +462,27 @@ app.post('/desk/activity/:team', requireRole('desk'), (req, res) => {
   for (const st of STATIONS) for (const slot of slotsFor(st)) {
     const key = `${st.id}:${slot}`;
     const had = stored.get(key);
-    if (req.body[`del_${st.id}_${slot}`]) { if (had) writes.push({ st, slot, action: 'removed', had }); continue; }
+    // Each row carries the version this device last saw. If another device saved the slot since, this save must not
+    // overwrite it: the desk reloads, sees the other entry, and corrects it on purpose if it really is wrong.
+    const seen = String(req.body[`v_${st.id}_${slot}`] ?? '0');
+    const stale = String(had ? had.updated_at : 0) !== seen;
+    const clash = () => errors.push(`${st.name}${slot ? ` showdown ${slot}` : ''} was saved from another device while this page was open. Reload the page to see that entry before changing it.`);
+    if (req.body[`del_${st.id}_${slot}`]) { if (had) { if (stale) clash(); else writes.push({ st, slot, action: 'removed', had }); } continue; }
     const f = fieldsOf(st, slot);
     if (isBlank(st.id, f)) continue;
+    const hold = req.body[`hold_${st.id}_${slot}`] ? 1 : 0;
     // A recorded row sends its stored values back untouched: that is not a correction.
     if (had) {
       const was = fieldsFromRaw(st.id, had.raw);
-      if (FIELDS[st.id].every((k) => String(f[k] ?? '').trim() === String(was[k] ?? ''))) continue;
+      if ((had.held || 0) === hold && FIELDS[st.id].every((k) => String(f[k] ?? '').trim() === String(was[k] ?? ''))) continue;
     }
+    if (stale) { clash(); continue; }
     const usedPeople = new Set([...satuPeople].filter(([other]) => other !== slot).flatMap(([, names]) => names));
     const r = readAttempt(st.id, f, { playerIds, usedPeople });
     if (r.error) { errors.push(slot ? `Showdown ${slot}. ${r.error}` : r.error); continue; }
     const raw = JSON.stringify(r.raw);
-    if (had && JSON.stringify(had.raw) === raw) continue;
-    writes.push({ st, slot, action: had ? 'corrected' : 'recorded', had, score: r.score, raw });
-  }
-  const bonusRaw = String(req.body.bonus ?? '').trim();
-  const hadBonus = state.bonusByTeam.has(team.id) ? state.bonusByTeam.get(team.id) : null;
-  let bonus = hadBonus;
-  if (req.body.bonus !== undefined) {
-    if (bonusRaw === '') bonus = null;
-    else if (!/^\d+(\.\d+)?$/.test(bonusRaw) || Number(bonusRaw) > BONUS_MAX) errors.push(`School Spirit bonus: enter a number from 0 to ${BONUS_MAX}, or leave it empty until it is decided.`);
-    else bonus = Number(bonusRaw);
+    if (had && JSON.stringify(had.raw) === raw && (had.held || 0) === hold) continue;
+    writes.push({ st, slot, action: had ? (had.held && !hold ? 'released' : !had.held && hold ? 'held' : 'corrected') : hold ? 'recorded, held' : 'recorded', had, score: r.score, raw, hold });
   }
   if (errors.length) {
     noStore(res);
@@ -492,23 +496,155 @@ app.post('/desk/activity/:team', requireRole('desk'), (req, res) => {
         run('DELETE FROM activity WHERE team_id = ? AND station = ? AND slot = ?', team.id, w.st.id, w.slot);
         log(w.st.id, w.slot, 'removed', null, null);
       } else {
-        run('INSERT INTO activity (team_id, station, slot, score, raw, by_user, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?) ' +
-          'ON CONFLICT(team_id, station, slot) DO UPDATE SET score = excluded.score, raw = excluded.raw, by_user = excluded.by_user, updated_at = excluded.updated_at',
-        team.id, w.st.id, w.slot, w.score, w.raw, req.user.id, now, now);
+        run('INSERT INTO activity (team_id, station, slot, score, raw, held, by_user, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?) ' +
+          'ON CONFLICT(team_id, station, slot) DO UPDATE SET score = excluded.score, raw = excluded.raw, held = excluded.held, by_user = excluded.by_user, updated_at = excluded.updated_at',
+        team.id, w.st.id, w.slot, w.score, w.raw, w.hold, req.user.id, now, now);
         log(w.st.id, w.slot, w.action, w.score, w.raw);
       }
     }
-    if (bonus !== hadBonus) {
-      if (bonus === null) run('DELETE FROM bonus WHERE team_id = ?', team.id);
-      else run('INSERT INTO bonus (team_id, points, by_user, at) VALUES (?, ?, ?, ?) ON CONFLICT(team_id) DO UPDATE SET points = excluded.points, by_user = excluded.by_user, at = excluded.at', team.id, bonus, req.user.id, now);
-      log('bonus', 0, bonus === null ? 'removed' : hadBonus === null ? 'recorded' : 'corrected', bonus, null);
-    }
   });
-  const n = writes.length + (bonus !== hadBonus ? 1 : 0);
+  const n = writes.length;
   const fresh = loadState().yardByTeam.get(team.id);
   back(res, activityUrl(team.id), 'msg', n
     ? `Saved ${n} change${n === 1 ? '' : 's'} for ${team.name}. School Yard so far: ${fmtPoints(fresh.banked)} points from ${fresh.entered} of ${fresh.needed} results.`
     : 'Nothing had changed.');
+});
+
+// ---------- School Yard Champion ledger ----------
+const awardKey = (name, id) => (id ? `id:${id.toLowerCase().replace(/\s+/g, '')}` : `name:${personKey(name)}`);
+function awardContext(teamId) {
+  const counts = new Map();
+  for (const r of all('SELECT team_id, COUNT(DISTINCT person_key) AS people, COUNT(*) AS records FROM award GROUP BY team_id')) counts.set(r.team_id, r);
+  return {
+    counts,
+    records: teamId ? all('SELECT * FROM award WHERE team_id = ? ORDER BY person, id', teamId) : [],
+    log: teamId ? all('SELECT * FROM award_log WHERE team_id = ? ORDER BY id DESC LIMIT 60', teamId) : [],
+  };
+}
+app.get('/desk/award', requireRole('desk'), (req, res) => {
+  const state = loadState();
+  const team = state.teamById.get(req.query.team) || null;
+  noStore(res);
+  res.send(awardPage(state, req.user, { team, query: req.query, ...awardContext(team?.id) }));
+});
+
+// Saves the typed lines of a school's person ledger. Each person may have one record at each station for the whole
+// event, whichever school they are entered under, so a second record for the same person and station is refused.
+app.post('/desk/award/:team', requireRole('desk'), (req, res) => {
+  const state = loadState();
+  const team = state.teamById.get(req.params.team);
+  if (!team) return res.status(404).send('School not found.');
+  const kinds = new Set(AWARD_KINDS.map(([k]) => k));
+  const errors = [];
+  const adds = [];
+  const seen = new Set();
+  for (let i = 0; i < 40; i++) {
+    if (req.body[`p_${i}`] === undefined) break;
+    const person = String(req.body[`p_${i}`] || '').trim().slice(0, 80);
+    const id = String(req.body[`id_${i}`] || '').trim().slice(0, 40);
+    const results = AWARD_STATIONS.map((st) => [st, String(req.body[`r_${i}_${st.id}`] || '').trim().slice(0, 40)]).filter(([, v]) => v);
+    if (!person && !results.length) continue;
+    if (!person) { errors.push(`Line ${i + 1} has a result but no name.`); continue; }
+    if (!results.length) { errors.push(`Line ${i + 1} (${person}) has no station result.`); continue; }
+    const kind = kinds.has(req.body[`k_${i}`]) ? req.body[`k_${i}`] : 'unverified';
+    const key = awardKey(person, id);
+    for (const [st, rawResult] of results) {
+      const dup = `${key}|${st.id}`;
+      const had = get('SELECT a.*, t.name AS team_name FROM award a JOIN teams t ON t.id = a.team_id WHERE a.person_key = ? AND a.station = ?', key, st.id);
+      if (had) errors.push(`${person} already has a ${st.name} record (${had.raw}, entered under ${had.team_name}). A person is credited once per station.`);
+      else if (seen.has(dup)) errors.push(`${person} appears twice for ${st.name} on this page.`);
+      else adds.push({ person, key, kind, st, rawResult, ref: String(req.body[`ref_${i}`] || '').trim().slice(0, 40) || null });
+      seen.add(dup);
+    }
+  }
+  if (errors.length) {
+    noStore(res);
+    return res.status(422).send(awardPage(state, req.user, { team, query: { err: `Nothing was saved. ${errors.join(' ')}` }, ...awardContext(team.id), draft: req.body }));
+  }
+  const now = Date.now();
+  tx(() => {
+    for (const a of adds) {
+      run('INSERT INTO award (team_id, person, person_key, kind, station, raw, ref, by_user, by_email, at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)', team.id, a.person, a.key, a.kind, a.st.id, a.rawResult, a.ref, req.user.id, req.user.email, now);
+      run('INSERT INTO award_log (action, team_id, person, station, raw, by_email, at) VALUES (?, ?, ?, ?, ?, ?, ?)', 'Recorded', team.id, a.person, a.st.id, a.rawResult, req.user.email, now);
+    }
+  });
+  back(res, `/desk/award?team=${team.id}`, 'msg', adds.length ? `Saved ${adds.length} record${adds.length === 1 ? '' : 's'} for ${team.name}. Credit stays pending.` : 'Nothing was typed in.');
+});
+
+app.post('/admin/award/:id/delete', requireRole('admin'), (req, res) => {
+  const r = get('SELECT * FROM award WHERE id = ?', Number(req.params.id));
+  if (!r) return res.status(404).send('Record not found.');
+  tx(() => {
+    run('DELETE FROM award WHERE id = ?', r.id);
+    run('INSERT INTO award_log (action, team_id, person, station, raw, by_email, at) VALUES (?, ?, ?, ?, ?, ?, ?)', 'Removed', r.team_id, r.person, r.station, r.raw, req.user.email, Date.now());
+  });
+  back(res, `/desk/award?team=${r.team_id}`, 'msg', 'Record removed. It stays in the change list.');
+});
+
+// ---------- Gold Americano (separate individual event) ----------
+app.get('/desk/americano', requireRole('desk'), (req, res) => { noStore(res); res.send(americanoPage(loadAmericano(), req.user, req.query)); });
+
+app.post('/desk/americano/scores', requireRole('desk'), (req, res) => {
+  const am = loadAmericano();
+  const changes = [];
+  for (const m of am.matches) {
+    if (req.body[`a_${m.id}`] === undefined) continue;
+    const ra = String(req.body[`a_${m.id}`] ?? '').trim();
+    const rb = String(req.body[`b_${m.id}`] ?? '').trim();
+    if (ra === '' && rb === '') { if (m.status === 'done') changes.push({ m, a: null, b: null }); continue; }
+    const a = /^\d+$/.test(ra) ? Number(ra) : NaN;
+    const b = /^\d+$/.test(rb) ? Number(rb) : NaN;
+    const err = amValidate(a, b);
+    if (err) return back(res, '/desk/americano', 'err', `Round ${m.round}: ${err} Nothing was saved.`);
+    if (m.score_a !== a || m.score_b !== b) changes.push({ m, a, b });
+  }
+  const now = Date.now();
+  tx(() => { for (const c of changes) run('UPDATE am_matches SET score_a = ?, score_b = ?, status = ?, updated_at = ? WHERE id = ?', c.a, c.b, c.a === null ? 'scheduled' : 'done', now, c.m.id); });
+  back(res, '/desk/americano', 'msg', changes.length ? `Saved ${changes.length} match${changes.length === 1 ? '' : 'es'}.` : 'Nothing had changed.');
+});
+
+app.post('/admin/americano/players', requireRole('admin'), (req, res) => {
+  const teams = new Set(all('SELECT id FROM teams').map((t) => t.id));
+  const inRounds = new Set(all('SELECT a1, a2, b1, b2, bye FROM am_matches').flatMap((m) => [m.a1, m.a2, m.b1, m.b2, m.bye]));
+  const read = (id) => ({ name: String(req.body[`name_${id}`] || '').trim().slice(0, 60), label: String(req.body[`label_${id}`] || '').trim().slice(0, 40) || null, team: teams.has(req.body[`team_${id}`]) ? req.body[`team_${id}`] : null });
+  const players = all('SELECT * FROM am_players');
+  for (const p of players) if (req.body[`del_${p.id}`] && inRounds.has(p.id)) return back(res, '/desk/americano', 'err', `${p.name} is in the rounds. Create the rounds again without them first, or just rename this player. Nothing was saved.`);
+  tx(() => {
+    for (const p of players) {
+      if (req.body[`del_${p.id}`]) { run('DELETE FROM am_players WHERE id = ?', p.id); continue; }
+      const v = read(p.id);
+      if (v.name) run('UPDATE am_players SET name = ?, label = ?, team_id = ? WHERE id = ?', v.name, v.label, v.team, p.id);
+    }
+    const n = read('new');
+    if (n.name) run('INSERT INTO am_players (name, label, team_id, sort) VALUES (?, ?, ?, (SELECT COALESCE(MAX(sort), 0) + 1 FROM am_players))', n.name, n.label, n.team);
+  });
+  back(res, '/desk/americano', 'msg', 'Players saved.');
+});
+
+app.post('/admin/americano/generate', requireRole('admin'), (req, res) => {
+  const ids = all('SELECT id FROM am_players ORDER BY sort, id').map((p) => p.id);
+  if (ids.length === 4 && !req.body.four) return back(res, '/desk/americano', 'err', 'With four players the format is only a draft. Tick the box to confirm the committee agreed to it.');
+  const rounds = amSchedule(ids);
+  if (!rounds) return back(res, '/desk/americano', 'err', 'The event needs five players, or four for the draft format.');
+  tx(() => {
+    run('DELETE FROM am_matches');
+    for (const r of rounds) run('INSERT INTO am_matches (round, a1, a2, b1, b2, bye) VALUES (?, ?, ?, ?, ?, ?)', r.round, r.a[0], r.a[1], r.b[0], r.b[1], r.bye);
+    setSetting('am_winner', '');
+    setSetting('am_runner', '');
+  });
+  back(res, '/desk/americano', 'msg', `${rounds.length} rounds created.`);
+});
+
+app.post('/admin/americano/placing', requireRole('admin'), (req, res) => {
+  const am = loadAmericano();
+  if (!am.board.finished) return back(res, '/desk/americano', 'err', 'Enter every match first.');
+  const w = Number(req.body.winner) || null;
+  const r = Number(req.body.runner) || null;
+  if (!w && !r) { setSetting('am_winner', ''); setSetting('am_runner', ''); return back(res, '/desk/americano', 'msg', 'Back to the placing from the table.'); }
+  if (!am.byId.has(w) || !am.byId.has(r) || w === r) return back(res, '/desk/americano', 'err', 'Choose two different players as winner and runner-up.');
+  setSetting('am_winner', w);
+  setSetting('am_runner', r);
+  back(res, '/desk/americano', 'msg', `Confirmed: ${am.byId.get(w).name} wins, ${am.byId.get(r).name} is runner-up.`);
 });
 
 // ---------- Admin ----------
@@ -529,6 +665,34 @@ app.post('/admin/groups', admin, (req, res) => {
   });
   const count = (g) => get('SELECT COUNT(*) AS n FROM teams WHERE grp = ?', g).n;
   back(res, '/admin?tab=setup', 'msg', `Groups saved: ${count('A')} in Group A, ${count('B')} in Group B.`);
+});
+
+// Starting points from the pre-event social challenge: one number per school, set before match day.
+app.post('/admin/bonus', admin, (req, res) => {
+  const teams = all('SELECT id, name FROM teams ORDER BY sort');
+  const next = [];
+  for (const t of teams) {
+    if (req.body[`b_${t.id}`] === undefined) continue;
+    const v = String(req.body[`b_${t.id}`]).trim().replace(',', '.');
+    if (v === '') { next.push([t, null]); continue; }
+    const n = Number(v);
+    if (!/^\d+(\.\d+)?$/.test(v) || n > BONUS_MAX || !Number.isInteger(n * 2)) return back(res, '/admin?tab=setup#bonus', 'err', `${t.name}: enter 0 to ${BONUS_MAX} in steps of 0.5, or leave it empty. Nothing was saved.`);
+    next.push([t, n]);
+  }
+  const had = new Map(all('SELECT team_id, points FROM bonus').map((b) => [b.team_id, b.points]));
+  const now = Date.now();
+  let changed = 0;
+  tx(() => {
+    for (const [t, n] of next) {
+      const was = had.has(t.id) ? had.get(t.id) : null;
+      if (was === n) continue;
+      changed++;
+      if (n === null) run('DELETE FROM bonus WHERE team_id = ?', t.id);
+      else run('INSERT INTO bonus (team_id, points, by_user, at) VALUES (?, ?, ?, ?) ON CONFLICT(team_id) DO UPDATE SET points = excluded.points, by_user = excluded.by_user, at = excluded.at', t.id, n, req.user.id, now);
+      run('INSERT INTO activity_log (team_id, station, slot, action, score, raw, by_user, by_email, at) VALUES (?, ?, 0, ?, ?, NULL, ?, ?, ?)', t.id, 'bonus', n === null ? 'removed' : was === null ? 'recorded' : 'corrected', n, req.user.id, req.user.email, now);
+    }
+  });
+  back(res, '/admin?tab=setup#bonus', 'msg', changed ? `Starting points saved for ${changed} school${changed === 1 ? '' : 's'}. Standings are updated.` : 'Nothing had changed.');
 });
 
 app.post('/admin/fixtures/generate', admin, (req, res) => {
@@ -621,7 +785,7 @@ app.post('/admin/security/revoke', admin, (req, res) => {
 app.get('/admin/export.json', admin, (req, res) => {
   noStore(res);
   res.set('Content-Disposition', `attachment; filename="bos-scores-${new Date().toISOString().slice(0, 16).replace(/[:T]/g, '-')}.json"`);
-  const tables = ['settings', 'teams', 'players', 'showdowns', 'matches', 'lineups', 'tickets', 'activity', 'activity_log', 'bonus'];
+  const tables = ['settings', 'teams', 'players', 'showdowns', 'matches', 'lineups', 'tickets', 'activity', 'activity_log', 'bonus', 'award', 'award_log', 'am_players', 'am_matches'];
   res.json({ exported_at: new Date().toISOString(), ...Object.fromEntries(tables.map((t) => [t, all(`SELECT * FROM ${t}`)])) });
 });
 

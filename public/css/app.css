@@ -510,3 +510,45 @@ tr.is-tied small{color:#b4291d}
 .tv-links span{font-size:.82rem;color:#4d5e74;line-height:1.45}
 .table-scroll:has(.roster-table){overflow:visible}
 @media (max-width:900px){.table-scroll:has(.roster-table){overflow-x:auto}.ph-pop{position:fixed;left:1rem;right:1rem;bottom:1rem;top:auto;width:auto;max-width:none}.ph-pop::before{display:none}}
+
+/* ---------- School Yard extras, Champion ledger, Gold Americano (staff pages) ---------- */
+.hero-links{display:flex;gap:.5rem;flex-wrap:wrap}
+.yf.is-ref{width:9.5rem}
+.yard-more{flex-basis:100%;font-size:.8rem}
+.yard-more summary{cursor:pointer;color:#4d5e74;font-weight:600;width:max-content}
+.yard-more .yard-del{margin-top:.4rem}
+.yard-row.is-held{background:linear-gradient(90deg,#fde9b8,transparent 45%)}
+.yard-held{font-style:normal;font-weight:600;color:#7a4b00}
+.yard-calc{flex-basis:100%;margin:0;font-size:.85rem;font-weight:600}
+.award-entry input,.award-entry select{min-height:40px;min-width:6.5rem;font-size:.95rem}
+.award-entry td{padding:.25rem .3rem!important}
+.award-entry td:first-child input{min-width:11rem}
+.award-list td{position:relative;white-space:nowrap}
+.award-raw{font-weight:600}
+.award-list td small{display:block;font-size:.66rem;color:#4d5e74}
+.award-list .fx-del{margin-left:.3rem}
+.am-rounds{list-style:none;margin:0 0 1rem;padding:0;display:grid;gap:.5rem;max-width:52rem}
+.am-round{border:1px solid var(--line);border-left:.3rem solid var(--navy);padding:.6rem .9rem .8rem;background:#fffdf6}
+.am-round.is-done{border-left-color:var(--lime)}
+.am-round-head{display:flex;justify-content:space-between;gap:1rem;margin:0 0 .4rem;max-width:none!important;font-size:.8rem}
+.am-round-head b{font-weight:900;font-size:.95rem}
+.am-round-head span{color:#4d5e74;font-weight:600}
+.am-match{display:grid;grid-template-columns:minmax(0,1fr) 4.6rem auto 4.6rem minmax(0,1fr);align-items:center;gap:.6rem}
+.am-match input{text-align:center;font-weight:900;font-size:1.3rem;padding:.3rem;min-height:48px}
+.am-pair{font-weight:600;text-align:right;line-height:1.25}
+.am-pair.is-b{text-align:left}
+.am-match i{font-style:normal;color:#4d5e74}
+.am-who{display:flex;align-items:center;gap:.6rem}
+.am-who > span:last-child{display:flex;flex-direction:column;line-height:1.2}
+.am-who small{font-size:.7rem;font-weight:600;color:#4d5e74;letter-spacing:.04em;text-transform:uppercase}
+.am-rank{width:1.6rem;text-align:center;font-weight:900;color:#4d5e74}
+.am-face{flex:none;display:grid;place-items:center;width:2.2rem;height:2.2rem;background:var(--navy);color:var(--cream);font-weight:900;font-size:.8rem;overflow:hidden}
+.am-face img{width:100%;height:100%;object-fit:cover;object-position:50% 15%}
+.am-face .tournament-team-mark{--tournament-mark-size:2.2rem}
+.am-table td{white-space:nowrap}
+.am-generate{margin-top:1.2rem;display:grid;gap:.6rem;justify-items:start;max-width:44rem}
+.am-generate p{margin:0}
+.am-placing{margin-top:1.2rem}
+@media(max-width:640px){.am-match{grid-template-columns:1fr 1fr;grid-template-areas:"pa pb" "sa sb"}.am-match i{display:none}.am-pair{text-align:left}}
+.bonus-grid input{width:5.5rem;text-align:center;font-weight:900;font-size:1.1rem}
+.am-tv-champ small .tournament-sport-mark{flex:none;display:grid;place-items:center;width:2.8vh;height:2.8vh}

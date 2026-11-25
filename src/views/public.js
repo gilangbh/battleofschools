@@ -87,7 +87,7 @@ function standingsTable(group, rows, showActivities) {
     <td class="ls-rank">${started ? r.rank : '–'}</td>
     <th scope="row"><span class="ls-school">${teamMark(r.team)}<span>${r.team.name}${r.place ? h`<small>${PLACE_LABEL[r.place]}</small>` : ''}</span></span></th>
     <td>${r.won}–${r.lost}</td><td>${r.games}</td>
-    ${showActivities ? h`<td>${fmtPoints(r.yard + r.bonus)}</td>` : ''}<td class="ls-total" data-k="t${r.team.id}">${fmtPoints(r.total)}</td>
+    ${showActivities ? h`<td>${fmtPoints(r.yard + r.bonus)}${r.pending ? h`<small class="ls-pending">${r.yardIn}/21${r.bonusIn ? '' : ' · no bonus yet'}</small>` : ''}</td>` : ''}<td class="ls-total" data-k="t${r.team.id}">${fmtPoints(r.total)}</td>
   </tr>`)}</tbody>
 </table></div>`;
 }

@@ -36,7 +36,7 @@ export function deskPage(state, user, query) {
 
   const body = h`
 <main id="main" class="page">
-  <div class="tournament-hero"><div class="wrap hero-row"><h1 class="page-title">Scoring desk</h1><a class="button small outline" href="/desk/activity">School Yard points</a></div></div>
+  <div class="tournament-hero"><div class="wrap hero-row"><h1 class="page-title">Scoring desk</h1><span class="hero-links"><a class="button small outline" href="/desk/activity">School Yard points</a><a class="button small outline" href="/desk/award">Champion ledger</a><a class="button small outline" href="/desk/americano">Gold Americano</a></span></div></div>
   <div class="wrap tournament-body">
     ${flash(query)}
     <section aria-labelledby="courts-h">

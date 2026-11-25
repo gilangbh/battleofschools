@@ -206,3 +206,4 @@
   .ls-school > span:last-child{font-size:.88rem}
   .ls-table .ls-total{font-size:1.1rem}
 }
+.ls-pending{display:block;font-size:.62rem;font-weight:600;letter-spacing:.04em;color:var(--ink-soft);white-space:nowrap}

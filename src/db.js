@@ -96,6 +96,34 @@ CREATE TABLE IF NOT EXISTS bonus (
 );
 `);
 
+// Later additions to the activity tables.
+const addColumn = (table, col, type) => { if (!db.prepare(`PRAGMA table_info(${table})`).all().some((c) => c.name === col)) db.exec(`ALTER TABLE ${table} ADD COLUMN ${col} ${type}`); };
+addColumn('activity', 'held', 'INTEGER NOT NULL DEFAULT 0'); // recorded but waiting for a committee decision: not counted
+addColumn('bonus', 'accounts', 'INTEGER'); // verified eligible unique accounts behind the School Spirit bonus
+addColumn('bonus', 'evidence', 'TEXT');
+
+// School Yard Champion: a separate ledger of each supporter's raw result at each station. Credited points stay
+// empty until the award policy is approved. One record per person and station for the whole event.
+// Gold Americano: a separate individual event with its own players and matches, apart from the school tournament.
+db.exec(`
+CREATE TABLE IF NOT EXISTS award (
+  id INTEGER PRIMARY KEY, team_id TEXT NOT NULL REFERENCES teams(id), person TEXT NOT NULL, person_key TEXT NOT NULL,
+  kind TEXT NOT NULL, station TEXT NOT NULL, raw TEXT NOT NULL, ref TEXT, credit REAL,
+  by_user INTEGER, by_email TEXT, at INTEGER NOT NULL,
+  UNIQUE (person_key, station)
+);
+CREATE TABLE IF NOT EXISTS award_log (
+  id INTEGER PRIMARY KEY, action TEXT NOT NULL, team_id TEXT, person TEXT, station TEXT, raw TEXT, by_email TEXT, at INTEGER NOT NULL
+);
+CREATE TABLE IF NOT EXISTS am_players (
+  id INTEGER PRIMARY KEY, name TEXT NOT NULL, label TEXT, team_id TEXT REFERENCES teams(id), photo TEXT, sort INTEGER NOT NULL DEFAULT 0
+);
+CREATE TABLE IF NOT EXISTS am_matches (
+  id INTEGER PRIMARY KEY, round INTEGER NOT NULL, a1 INTEGER NOT NULL, a2 INTEGER NOT NULL, b1 INTEGER NOT NULL, b2 INTEGER NOT NULL,
+  bye INTEGER, score_a INTEGER, score_b INTEGER, status TEXT NOT NULL DEFAULT 'scheduled', updated_at INTEGER
+);
+`);
+
 export const all = (sql, ...p) => db.prepare(sql).all(...p);
 export const get = (sql, ...p) => db.prepare(sql).get(...p);
 export const run = (sql, ...p) => db.prepare(sql).run(...p);

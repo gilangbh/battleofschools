@@ -3,6 +3,23 @@ import path from 'node:path';
 import { all, get, run, tx, getSetting, setSetting } from './db.js';
 import { CATEGORIES, computeStandings, showdownSummary, generateGroupRounds, isKnockout } from './rules.js';
 import { summarize } from './activity.js';
+import { leaderboard } from './americano.js';
+
+/** Everything the Gold Americano pages need. Kept apart from loadState: it is a separate event. */
+export function loadAmericano() {
+  const players = all('SELECT * FROM am_players ORDER BY sort, id');
+  const matches = all('SELECT * FROM am_matches ORDER BY round, id');
+  const teams = all('SELECT * FROM teams ORDER BY sort');
+  const board = leaderboard(players, matches);
+  const manualWinner = Number(getSetting('am_winner')) || null;
+  const manualRunner = Number(getSetting('am_runner')) || null;
+  const has = (id) => players.some((p) => p.id === id);
+  const manual = Boolean(board.finished && manualWinner && has(manualWinner));
+  const placing = manual
+    ? { winner: manualWinner, runner: has(manualRunner) ? manualRunner : null, manual: true, auto: false }
+    : { winner: board.winner?.id || null, runner: board.runnerUp?.id || null, manual: false, auto: true };
+  return { players, matches, teams, board, placing, byId: new Map(players.map((p) => [p.id, p])), teamById: new Map(teams.map((t) => [t.id, t])) };
+}
 
 const DEFAULT_SETTINGS = {
   event_title: 'Homecoming 2026',
@@ -120,12 +137,14 @@ export function loadState() {
   // School Yard activities and the pre-event School Spirit bonus
   const activityRows = all('SELECT * FROM activity');
   for (const r of activityRows) { try { r.raw = JSON.parse(r.raw); } catch { r.raw = {}; } }
-  const bonusByTeam = new Map(all('SELECT * FROM bonus').map((b) => [b.team_id, b.points]));
+  const bonusRows = all('SELECT * FROM bonus');
+  const bonusByTeam = new Map(bonusRows.map((b) => [b.team_id, b.points]));
+  const bonusInfo = new Map(bonusRows.map((b) => [b.team_id, b]));
   const yardByTeam = new Map(teams.map((t) => [t.id, summarize(activityRows.filter((r) => r.team_id === t.id))]));
   const yardStarted = activityRows.length > 0 || bonusByTeam.size > 0;
   const extraByTeam = new Map(teams.map((t) => {
     const y = yardByTeam.get(t.id);
-    return [t.id, { yard: y.banked, bonus: bonusByTeam.get(t.id) || 0, pending: !y.complete || !bonusByTeam.has(t.id) }];
+    return [t.id, { yard: y.banked, bonus: bonusByTeam.get(t.id) || 0, pending: !y.complete || !bonusByTeam.has(t.id), yardIn: y.entered, bonusIn: bonusByTeam.has(t.id) }];
   }));
 
   const standings = computeStandings(teams, showdowns, extraByTeam);
@@ -151,7 +170,7 @@ export function loadState() {
 
   return {
     settings, courts, teams, teamById, players, allPlayers, playerById, showdowns, sdById, matchById, allMatches,
-    activityRows, yardByTeam, bonusByTeam, yardStarted, standings, appearances, ticketsByTeam, live, recent,
+    activityRows, yardByTeam, bonusByTeam, bonusInfo, yardStarted, standings, appearances, ticketsByTeam, live, recent,
     groupsSet: teams.some((t) => t.grp),
     knockout: showdowns.filter((s) => isKnockout(s.stage)),
   };

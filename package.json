@@ -10,7 +10,7 @@
   "scripts": {
     "start": "node --no-warnings server.js",
     "dev": "node --watch server.js",
-    "test": "node --no-warnings --test test/rules.test.js test/activity.test.js",
+    "test": "node --no-warnings --test test/rules.test.js test/activity.test.js test/americano.test.js",
     "scrape": "node scripts/scrape.mjs"
   },
   "dependencies": {

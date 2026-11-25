@@ -1,7 +1,7 @@
 import { h, raw, layout, teamMark, flash } from './ui.js';
 import { STATIONS, FIELDS, AGG_LABEL, slotsFor, fmtPoints, fieldsFromRaw, ROUNDS, STATION_MAX, YARD_MAX, BONUS_MAX, RESULTS_NEEDED } from '../activity.js';
 
-const LABEL = { recorded: 'Recorded', corrected: 'Corrected', removed: 'Removed' };
+const LABEL = { recorded: 'Recorded', corrected: 'Corrected', removed: 'Removed', held: 'Held for review', released: 'Released from review', 'recorded, held': 'Recorded and held for review' };
 const time = (ms) => new Date(ms).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Jakarta' });
 
 /** What was recorded for one attempt, in words. Names of spectators stay on this staff page only. */
@@ -34,12 +34,13 @@ function entryFields(state, team, st, slot, values) {
   const v = (k) => values[k] ?? '';
   const numField = (k, label, attrs) => h`<label class="yf">${label}<input type="number" inputmode="decimal" name="${name(k)}" value="${v(k)}"${raw(attrs)}></label>`;
   const textField = (k, label, wide) => h`<label class="yf${wide ? ' is-wide' : ''}">${label}<input type="text" name="${name(k)}" value="${v(k)}" maxlength="${wide ? 120 : 60}" autocomplete="off"></label>`;
+  const refField = () => h`<label class="yf is-ref">Booth sheet no. (optional)<input type="text" name="${name('ref')}" value="${v('ref')}" maxlength="40" autocomplete="off"></label>`;
   const player = (label) => h`<label class="yf is-wide">${label}<select name="${name('player')}"><option value="">Choose player</option>${team.regulars.map((p) => h`<option value="${p.id}"${String(v('player')) === String(p.id) ? raw(' selected') : ''}>${p.name}</option>`)}</select></label>`;
-  if (st.id === 'pin') return h`${numField('score', 'Correct labels, 0 to 5', ' min="0" max="5" step="1"')}${player('Registered player in the five')}`;
-  if (st.id === 'satu') return h`${numField('hop', 'Hopscotch achievements, 0 to 5', ' min="0" max="5" step="1"')}${numField('bowl', 'Blind Scoop bowl points', ' min="0" step="any"')}${textField('hopper', 'Hopper (spectator)')}${textField('scooper', 'Scooper (spectator)')}`;
-  if (st.id === 'accuracy') return h`<span class="yf-shots">${[1, 2, 3, 4, 5].map((i) => numField(`s${i}`, `Shot ${i}`, ' min="0" step="any"'))}</span>${player('Registered player who shot')}`;
-  if (st.id === 'on') return h`${numField('lengths', 'Completed 20 m lengths', ' min="0" max="60" step="1"')}${textField('runners', 'Runner, or both runners (spectators)', true)}`;
-  return h`<label class="yf is-wide">Relay result<select name="${name('result')}"><option value="">Choose</option><option value="done"${v('result') === 'done' ? raw(' selected') : ''}>Completed within 30 seconds</option><option value="not"${v('result') === 'not' ? raw(' selected') : ''}>Not completed within 30 seconds</option></select></label>${numField('seconds', 'Final flip, seconds (optional)', ' min="0" step="any"')}${player('Registered player in the four')}`;
+  if (st.id === 'pin') return h`${numField('score', 'Correct labels, 0 to 5', ' min="0" max="5" step="1"')}${player('Registered player in the five')}${refField()}`;
+  if (st.id === 'satu') return h`${numField('hop', 'Hopscotch achievements, 0 to 5', ' min="0" max="5" step="1"')}${numField('bowl', 'Blind Scoop bowl points', ' min="0" step="any"')}${textField('hopper', 'Hopper (spectator)')}${textField('scooper', 'Scooper (spectator)')}${refField()}`;
+  if (st.id === 'accuracy') return h`<span class="yf-shots">${[1, 2, 3, 4, 5].map((i) => numField(`s${i}`, `Shot ${i}`, ' min="0" step="any"'))}</span>${player('Regular player who shot')}${refField()}`;
+  if (st.id === 'on') return h`${numField('lengths', 'Completed 20 m lengths', ' min="0" max="60" step="1"')}${textField('runners', 'Runner, or both runners (spectators)', true)}${refField()}`;
+  return h`<label class="yf is-wide">Relay result<select name="${name('result')}"><option value="">Choose</option><option value="done"${v('result') === 'done' ? raw(' selected') : ''}>Completed within 30 seconds</option><option value="not"${v('result') === 'not' ? raw(' selected') : ''}>Not completed within 30 seconds</option></select></label>${numField('seconds', 'Final flip, seconds (optional)', ' min="0" step="any"')}${player('Registered player in the four')}${refField()}`;
 }
 
 function teamForm(state, team, log, draft) {
@@ -48,6 +49,7 @@ function teamForm(state, team, log, draft) {
   const playerName = (id) => state.playerById.get(id)?.name || 'player not found';
   const opponents = new Map(state.showdowns.filter((sd) => sd.stage === 'group' && (sd.team_a === team.id || sd.team_b === team.id)).map((sd) => [sd.round, sd]));
   const bonus = state.bonusByTeam.has(team.id) ? state.bonusByTeam.get(team.id) : null;
+  const holdBox = (st, slot, r) => h`<label class="yard-del"><input type="checkbox" name="hold_${st.id}_${slot}"${(draft ? draft[`hold_${st.id}_${slot}`] : r?.held) ? raw(' checked') : ''}> Hold for committee review: keep it on record but do not count it yet (for example a late or disputed attempt)</label>`;
   const draftFields = (st, slot) => (draft ? Object.fromEntries(FIELDS[st.id].map((k) => [k, draft[`a_${st.id}_${slot}_${k}`] ?? ''])) : null);
 
   const row = (st, slot) => {
@@ -60,20 +62,22 @@ function teamForm(state, team, log, draft) {
     const stored = fieldsFromRaw(st.id, r?.raw);
     const typed = draftFields(st, slot);
     const values = typed || stored;
-    if (!r) return h`<li class="yard-row"><div class="yard-when">${when}</div><div class="yard-entry">${entryFields(state, team, st, slot, values)}</div></li>`;
+    const version = h`<input type="hidden" name="v_${st.id}_${slot}" value="${draft ? draft[`v_${st.id}_${slot}`] ?? '0' : r ? r.updated_at : 0}">`;
+    if (!r) return h`<li class="yard-row"><div class="yard-when">${when}</div><div class="yard-entry">${version}${entryFields(state, team, st, slot, values)}<details class="yard-more"><summary>More</summary>${holdBox(st, slot, null)}</details></div></li>`;
     const pid = `ya-${st.id}-${slot}`;
-    const reopened = Boolean(draft && (draft[`del_${st.id}_${slot}`] || FIELDS[st.id].some((k) => String(typed[k] ?? '') !== String(stored[k] ?? ''))));
-    return h`<li class="yard-row is-done"><div class="yard-when">${when}</div>
-      <div class="yard-result"><b>${fmtPoints(r.score)}</b><span>${describe(st.id, r, playerName)}</span><button type="button" class="pill" data-toggle="${pid}" aria-expanded="${reopened ? 'true' : 'false'}">Edit</button></div>
+    const reopened = Boolean(draft && (draft[`del_${st.id}_${slot}`] || Boolean(draft[`hold_${st.id}_${slot}`]) !== Boolean(r.held) || FIELDS[st.id].some((k) => String(typed[k] ?? '') !== String(stored[k] ?? ''))));
+    return h`<li class="yard-row is-done${r.held ? ' is-held' : ''}"><div class="yard-when">${when}</div>
+      <div class="yard-result"><b>${fmtPoints(r.score)}</b><span>${r.held ? h`<em class="yard-held">Held for committee review · not counted</em> ` : ''}${describe(st.id, r, playerName)}${r.raw?.ref ? ` · sheet ${r.raw.ref}` : ''}</span><button type="button" class="pill" data-toggle="${pid}" aria-expanded="${reopened ? 'true' : 'false'}">Edit</button></div>
       <div class="yard-entry dm-panel" id="${pid}"${reopened ? '' : raw(' hidden')}>
         <p class="yard-fix">Only to correct a recording mistake. A later or better try does not replace the official attempt. The first entry stays in the change list.</p>
-        ${entryFields(state, team, st, slot, values)}
+        ${version}${entryFields(state, team, st, slot, values)}
+        ${holdBox(st, slot, r)}
         <label class="yard-del"><input type="checkbox" name="del_${st.id}_${slot}"${draft && draft[`del_${st.id}_${slot}`] ? raw(' checked') : ''}> Remove this result and set it back to pending</label>
       </div></li>`;
   };
 
   return h`<form method="post" action="/desk/activity/${team.id}" data-dirty-form class="yard-form">
-    <div class="roster-head">${teamMark(team)}<div><h3>${team.name}</h3><p>School Yard so far: <b>${fmtPoints(y.banked)}</b> of ${YARD_MAX} · ${y.entered} of ${RESULTS_NEEDED} results in${y.complete ? ' · complete' : ''}</p></div></div>
+    <div class="roster-head">${teamMark(team)}<div><h3>${team.name}</h3><p>School Yard so far: <b>${fmtPoints(y.banked)}</b> of ${YARD_MAX} · ${y.entered} of ${RESULTS_NEEDED} results in${y.held ? ` · ${y.held} held for review` : ''}${y.complete ? ' · complete' : ''}</p></div></div>
     <p class="footnote">Record the first eligible official attempt at each station. Leave a row empty while a result is missing: it stays pending and is never counted as zero. Enter 0 only for a real attempt that scored nothing.</p>
     ${STATIONS.map((st) => {
       const s = y.stations[st.id];
@@ -85,9 +89,8 @@ function teamForm(state, team, log, draft) {
       </section>`;
     })}
     <section class="yard-st" aria-labelledby="st-bonus">
-      <header class="yard-st-head"><h3 id="st-bonus">School Spirit bonus <small>Pre-event social challenge</small></h3><p class="yard-sum"><b>${bonus === null ? '–' : fmtPoints(bonus)}</b> of ${BONUS_MAX}</p></header>
-      <p class="footnote">Separate from the ${YARD_MAX} School Yard points. Ten eligible accounts earn the full ${BONUS_MAX}. Leave it empty until the committee has decided; enter 0 if the school earned none. Semifinal places stay provisional while it is empty.</p>
-      <div class="yard-entry is-bonus"><label class="yf">Bonus points, 0 to ${BONUS_MAX}<input type="number" inputmode="decimal" name="bonus" min="0" max="${BONUS_MAX}" step="any" value="${draft ? draft.bonus ?? '' : bonus ?? ''}"></label></div>
+      <header class="yard-st-head"><h3 id="st-bonus">Pre-event social challenge <small>Starting points</small></h3><p class="yard-sum"><b>${bonus === null ? '–' : fmtPoints(bonus)}</b> of ${BONUS_MAX}</p></header>
+      <p class="footnote">Starting points from the pre-event social challenge, separate from the ${YARD_MAX} School Yard points. An admin sets them for every school before match day under Admin → Draw and fixtures.${bonus === null ? ' Not set yet for this school, so its semifinal place stays provisional.' : ''}</p>
     </section>
     <div class="save-bar"><button class="button" type="submit">Save ${team.name}</button><span class="save-note" data-dirty-note>No unsaved changes.</span></div>
   </form>

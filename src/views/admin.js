@@ -17,6 +17,15 @@ function setupTab(state) {
   </form>
 </section>
 
+<section id="bonus"><h2>Starting points</h2>
+  <p>The pre-event social challenge gives each school up to 5 points before play starts: 0.5 per verified account, up to ten accounts. Enter each school’s points here once the committee has tallied them. Enter 0 for a school that earned none; an empty box means “not tallied yet” and keeps that group’s semifinal places provisional.</p>
+  <form method="post" action="/admin/bonus">
+    <ul class="group-grid bonus-grid" role="list">${state.teams.map((t) => h`<li>${teamMark(t)}<span>${t.name}</span>
+      <input type="number" inputmode="decimal" name="b_${t.id}" min="0" max="5" step="0.5" value="${state.bonusByTeam.has(t.id) ? state.bonusByTeam.get(t.id) : ''}" placeholder="–" aria-label="Starting points for ${t.name}"></li>`)}</ul>
+    <p class="form-actions"><button class="button" type="submit">Save starting points</button></p>
+  </form>
+</section>
+
 <section id="fixtures"><h2>2. Fixtures</h2>
   <p>“Generate” builds five rounds where every school meets all five schools in the other group, plus two semifinals and a final.</p>
   <form method="post" action="/admin/fixtures/generate" data-confirm="This deletes all existing fixtures, lineups and scores. Continue?">
@@ -213,6 +222,7 @@ function settingsTab(state, visibility) {
   <ul class="tv-links" role="list">
     <li><a href="/tv">Group stage</a><span>Six courts with player photos, both group tables, results ticker.</span></li>
     <li><a href="/tv/knockout">Knockout stage</a><span>The two semifinals and the final as a bracket, category by category.</span></li>
+    <li><a href="/tv/americano">Gold Americano</a><span>The individual table and the rounds of the Gold Players’ event.</span></li>
     <li><a href="/tv/summary">Final summary</a><span>Champion, finals results, both groups and every score.</span></li>
     <li><a href="/tv/summary?secret=1">Final summary with player tables</a><span>Adds the top ten players by matches won and by games won. Only shown with this address.</span></li>
   </ul>

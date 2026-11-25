@@ -13,12 +13,13 @@ export const STATION_MAX = 5;
 export const YARD_MAX = 25;
 export const BONUS_MAX = 5;
 
+
 export const STATIONS = [
   { id: 'pin', name: 'Pin the Cut', by: 'Tokusen × JAPFA', agg: 'mean', who: 'Five people, at least one registered player. First eligible group in each showdown.' },
   { id: 'satu', name: 'Satu Satu', by: 'Hopscotch + Blind Scoop', agg: 'mean', who: 'Two spectators, one per role. Ten different people over the five showdowns.' },
-  { id: 'accuracy', name: 'Accuracy', by: 'Sucor Sekuritas', agg: 'mean', who: 'One registered player takes five shots. First eligible attempt in each showdown.' },
+  { id: 'accuracy', name: 'Accuracy', by: 'Sucor Sekuritas', agg: 'mean', who: 'One of the school’s eight regular players takes five shots (not a Gold Player). First eligible attempt in each showdown.' },
   { id: 'on', name: 'On Running', by: 'On', agg: 'single', who: 'One or two spectators. One recorded run per school for the whole event.' },
-  { id: 'red_bull', name: 'Flip Cup', by: 'Red Bull', agg: 'sum', who: 'Four people, at least one registered player. One relay in each showdown, 30 seconds for all four.' },
+  { id: 'red_bull', name: 'Flip Cup', by: 'Red Bull', agg: 'sum', who: 'Four people, at least one registered player. Each drinks the shot, then at once flips the same emptied cup. One 30-second clock for all four, no refill on a retry. One relay in each showdown.' },
 ];
 export const STATION_BY_ID = new Map(STATIONS.map((s) => [s.id, s]));
 export const AGG_LABEL = { mean: 'average of five', single: 'one result', sum: 'sum of five' };
@@ -29,12 +30,14 @@ export const RESULTS_NEEDED = STATIONS.reduce((n, s) => n + slotsFor(s).length, 
 
 /** Entry fields per station, in the order they are shown. */
 export const FIELDS = {
-  pin: ['score', 'player'],
-  satu: ['hop', 'bowl', 'hopper', 'scooper'],
-  accuracy: ['s1', 's2', 's3', 's4', 's5', 'player'],
-  on: ['lengths', 'runners'],
-  red_bull: ['result', 'seconds', 'player'],
+  pin: ['score', 'player', 'ref'],
+  satu: ['hop', 'bowl', 'hopper', 'scooper', 'ref'],
+  accuracy: ['s1', 's2', 's3', 's4', 's5', 'player', 'ref'],
+  on: ['lengths', 'runners', 'ref'],
+  red_bull: ['result', 'seconds', 'player', 'ref'],
 };
+/** Fields that say what happened. The booth sheet reference alone does not make an attempt. */
+const RESULT_FIELDS = (stationId) => (FIELDS[stationId] || []).filter((k) => k !== 'ref');
 
 const text = (v) => String(v ?? '').trim();
 const blank = (v) => text(v) === '';
@@ -45,7 +48,7 @@ export const personKey = (name) => text(name).toLowerCase().replace(/\s+/g, ' ')
 
 /** True when nothing was typed for this attempt, so it is skipped and stays pending. */
 export function isBlank(stationId, f) {
-  return (FIELDS[stationId] || []).every((k) => blank(f[k]));
+  return RESULT_FIELDS(stationId).every((k) => blank(f[k]));
 }
 
 /**
@@ -55,6 +58,14 @@ export function isBlank(stationId, f) {
  * Returns { error } or { score, raw } where raw is what gets stored.
  */
 export function readAttempt(stationId, f, ctx = {}) {
+  const r = scoreAttempt(stationId, f, ctx);
+  if (r.error) return r;
+  // The booth sheet number ties the entry back to the paper record.
+  const ref = text(f.ref).slice(0, 40);
+  return { score: r.score, raw: ref ? { ...r.raw, ref } : r.raw };
+}
+
+function scoreAttempt(stationId, f, ctx = {}) {
   const playerIds = ctx.playerIds || new Set();
   const player = () => {
     const id = whole(f.player);
@@ -112,15 +123,18 @@ export function readAttempt(stationId, f, ctx = {}) {
 /** A stored result in the shape of the entry fields, so an edit starts from what was recorded. */
 export function fieldsFromRaw(stationId, x) {
   if (!x || x.demo) return {};
-  if (stationId === 'accuracy') return { s1: x.shots[0], s2: x.shots[1], s3: x.shots[2], s4: x.shots[3], s5: x.shots[4], player: x.player };
-  return { ...x, seconds: x.seconds ?? '' };
+  if (stationId === 'accuracy') return { s1: x.shots[0], s2: x.shots[1], s3: x.shots[2], s4: x.shots[3], s5: x.shots[4], player: x.player, ref: x.ref ?? '' };
+  return { ...x, seconds: x.seconds ?? '', ref: x.ref ?? '' };
 }
 
 /**
  * One school's School Yard position from its recorded attempts ([{ station, slot, score }]).
  * `banked` is what the recorded attempts are worth so far; `total` is set only when all 21 results are in.
  */
-export function summarize(rows = []) {
+export function summarize(allRows = []) {
+  // A result held for committee review is on record but not counted, so its slot stays pending.
+  const rows = allRows.filter((r) => !r.held);
+  const held = allRows.length - rows.length;
   const stations = {};
   let banked = 0;
   let entered = 0;
@@ -134,7 +148,7 @@ export function summarize(rows = []) {
     entered += scores.length;
   }
   const complete = entered === RESULTS_NEEDED;
-  return { stations, banked, entered, needed: RESULTS_NEEDED, complete, total: complete ? banked : null };
+  return { stations, banked, entered, held, needed: RESULTS_NEEDED, complete, total: complete ? banked : null };
 }
 
 /** Points shown to people: at most two decimals, no trailing zeros. Display rounding is still the committee's call. */

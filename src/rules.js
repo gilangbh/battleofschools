@@ -182,7 +182,7 @@ export function showdownSummary(stage, matches) {
 export function computeStandings(teams, showdowns, extraByTeam = new Map()) {
   const rows = new Map(teams.map((t) => {
     const x = extraByTeam.get(t.id) || {};
-    return [t.id, { team: t, played: 0, won: 0, lost: 0, games: 0, yard: x.yard || 0, bonus: x.bonus || 0, pending: Boolean(x.pending), total: 0, place: null }];
+    return [t.id, { team: t, played: 0, won: 0, lost: 0, games: 0, yard: x.yard || 0, bonus: x.bonus || 0, pending: Boolean(x.pending), yardIn: x.yardIn || 0, bonusIn: Boolean(x.bonusIn), total: 0, place: null }];
   }));
   let groupLeft = 0;
   for (const sd of showdowns) {

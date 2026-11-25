@@ -196,3 +196,58 @@
 .sm.has-secret .sm-standings .sb-table td,.sm.has-secret .sm-standings .sb-table tbody th{font-size:1.9vh}
 .sm-tiles span{white-space:normal;line-height:1.25}
 .sm.has-secret .sm-standings .sb-name > span:last-child{white-space:normal;font-size:1.7vh;line-height:1.12}
+
+/* ---------- Gold Americano TV screen ---------- */
+.am-tv{min-height:0;display:grid;grid-template-columns:minmax(0,1.15fr) minmax(0,1fr);gap:2vh}
+.am-tv-col{min-height:0;display:flex;flex-direction:column;gap:1.4vh;overflow:hidden}
+.am-tv .am-face{width:6.2vh;height:6.2vh;font-size:2.2vh;background:var(--panel);border:.15vh solid var(--edge);color:var(--cream)}
+.am-tv .am-face .tournament-team-mark{--tournament-mark-size:6.2vh;--tournament-mark-padding:.5vh;background:transparent}
+.am-tv .am-face.is-big{width:13vh;height:13vh;font-size:5vh;background:var(--navy)}
+.am-tv .am-face.is-big .tournament-team-mark{--tournament-mark-size:13vh}
+.am-tv-intro,.am-tv-champ{display:flex;flex-direction:column;gap:.4vh;padding:1.6vh 2vh;border:.15vh dashed var(--edge)}
+.am-tv-intro small,.am-tv-champ small{display:flex;align-items:center;gap:.8vh;font-size:1.4vh;font-weight:600;letter-spacing:.16em;text-transform:uppercase;color:var(--lime)}
+.am-tv-intro strong{font-size:4.4vh;font-weight:900;letter-spacing:-.05em;line-height:1;text-transform:uppercase}
+.am-tv-intro span{font-size:1.8vh;opacity:.8}
+.am-tv-champ{flex-direction:row;align-items:center;gap:2vh;background:var(--lime);color:var(--navy);border:0}
+.am-tv-champ > div{display:flex;flex-direction:column;gap:.3vh;min-width:0}
+.am-tv-champ small{color:var(--navy)}
+.am-tv-champ small svg{width:2.6vh;height:2.6vh}
+.am-tv-champ strong{font-size:5.6vh;font-weight:900;letter-spacing:-.055em;line-height:1;text-transform:uppercase}
+.am-tv-champ span{font-size:1.9vh;font-weight:600}
+.am-tv-table{flex:1;width:100%;border-collapse:collapse;background:var(--panel-2);border:.15vh solid var(--edge);font-variant-numeric:tabular-nums}
+.am-tv-table thead th{font-size:1.2vh;font-weight:600;letter-spacing:.14em;text-transform:uppercase;text-align:right;padding:.8vh 1.6vh;opacity:.65}
+.am-tv-table thead th:nth-child(2){text-align:left}
+.am-tv-table td,.am-tv-table tbody th{border-top:.15vh solid var(--edge);padding:0 1.6vh;text-align:right;font-size:2.3vh}
+.am-tv-table tbody th{text-align:left}
+.am-tv-rank{width:6vh;text-align:center!important;font-weight:900;font-size:3.4vh!important;padding:0!important}
+.am-tv-who{display:flex;align-items:center;gap:1.4vh;min-width:0}
+.am-tv-who > span:last-child{display:flex;flex-direction:column;line-height:1.15;min-width:0}
+.am-tv-who b{font-size:2.8vh;font-weight:900;letter-spacing:-.03em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.am-tv-who small{font-size:1.25vh;font-weight:600;letter-spacing:.14em;text-transform:uppercase;opacity:.65}
+.am-tv-pts{font-size:5vh!important;font-weight:900;letter-spacing:-.04em;width:12vh}
+.am-tv-table tr.is-top .am-tv-rank{background:var(--lime);color:var(--navy)}
+.am-tv-table tr.is-top .am-tv-pts{color:var(--lime)}
+.am-tv-rounds{gap:1vh}
+.am-tv-round{flex:1;min-height:0;display:flex;flex-direction:column;background:var(--panel-2);border:.15vh solid var(--edge);overflow:hidden}
+.am-tv-round header{display:flex;align-items:center;gap:1.4vh;padding:.5vh 1.2vh;background:#f7f3e80f}
+.am-tv-round header b{font-size:1.7vh;font-weight:900;letter-spacing:.06em;text-transform:uppercase}
+.am-tv-round header span{flex:1;font-size:1.3vh;font-weight:600;letter-spacing:.1em;text-transform:uppercase;opacity:.65}
+.am-tv-round header .sb-chip{font-style:normal;font-size:1.1vh;padding:.3vh .8vh}
+.am-tv-round.is-next{border-color:var(--lime);box-shadow:0 0 0 .15vh var(--lime)}
+.am-tv-round.is-next header{background:var(--lime);color:var(--navy)}
+.am-tv-round.is-next header .sb-chip{border-color:var(--navy)}
+.am-tv-match{flex:1;min-height:0;display:grid;grid-template-columns:minmax(0,1fr) auto minmax(0,1fr);align-items:center;gap:1.2vh;padding:.4vh 1.4vh}
+.am-tv-side{display:grid;grid-template-columns:auto minmax(0,1fr) auto;align-items:center;gap:1.2vh}
+.am-tv-side:last-child{grid-template-columns:auto minmax(0,1fr) auto;direction:rtl}
+.am-tv-side:last-child > *{direction:ltr}
+.am-tv-faces{display:flex;gap:.4vh}
+.am-tv-rounds .am-face{width:4.6vh;height:4.6vh;font-size:1.6vh}
+.am-tv-rounds .am-face .tournament-team-mark{--tournament-mark-size:4.6vh;--tournament-mark-padding:.35vh}
+.am-tv-names{font-size:1.9vh;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.am-tv-side:last-child .am-tv-names{text-align:right}
+.am-tv-side b{font-size:5vh;font-weight:900;line-height:1;letter-spacing:-.04em;font-variant-numeric:tabular-nums;opacity:.6;min-width:1.3em;text-align:center}
+.am-tv-side.is-w b{color:var(--lime);opacity:1}
+.am-tv-round:not(.is-done) .am-tv-side b{font-size:3vh;opacity:.3}
+.am-tv-v{font-weight:900;font-style:italic;font-size:1.7vh;color:var(--navy);background:var(--lime);padding:0 .7vh;line-height:1.5;transform:rotate(-6deg)}
+@media (max-aspect-ratio:1/1){.am-tv{grid-template-columns:1fr}}
+.am-tv-champ small .tournament-sport-mark{flex:none;display:grid;place-items:center;width:2.8vh;height:2.8vh}
