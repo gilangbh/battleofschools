@@ -81,31 +81,34 @@ ok(!pub.includes('Ani Wijaya') && !pub.includes('Gold Person'), 'ledger names ne
 ok(db.prepare('SELECT COUNT(*) n FROM activity WHERE team_id = ?').get(team).n === 4, 'the award ledger adds nothing to the official results');
 
 
-// --- Quick entry from the overview table ---
+// --- Final points typed into the overview table ---
 await post('/admin/reset', { confirm: 'RESET', lineups: 'on', yard: 'on' }, 'testadmin');
 const q = (body, cookie = 'testdesk') => post(`/desk/activity-quick/${team}`, { cur: team, ...body }, cookie);
-res = await q({ q_pin_1: '4', q_pin_2: '3', q_red_bull_1: '1', q_on_0: '3.5', qv_pin_1: '0', qv_pin_2: '0', qv_red_bull_1: '0', qv_on_0: '0' });
-ok(res.status === 303 && row('pin', 1).score === 4 && row('pin', 2).score === 3 && row('red_bull', 1).score === 1 && row('on', 0).score === 3.5, 'points typed into cells are saved');
-ok(JSON.parse(row('pin', 1).raw).quick === true, 'a quick entry is marked as such');
-res = await q({ q_pin_3: '3.5', qv_pin_3: '0', q_pin_4: '5', qv_pin_4: '0' });
-ok(res.status === 303 && /err=/.test(loc(res)) && !row('pin', 4), 'one bad cell saves nothing from that row');
-res = await q({ q_pin_1: '2', qv_pin_1: '0' });
-ok(/err=/.test(loc(res)) && row('pin', 1).score === 4, 'a stale cell cannot overwrite another device');
-res = await q({ q_pin_1: '2', qv_pin_1: String(row('pin', 1).updated_at) });
-ok(row('pin', 1).score === 2 && db.prepare("SELECT COUNT(*) n FROM activity_log WHERE station = 'pin' AND slot = 1").get().n === 2, 'a correction is saved and logged');
-res = await q({ q_pin_2: '', qv_pin_2: String(row('pin', 2).updated_at) });
-ok(!row('pin', 2), 'emptying a cell sets it back to pending');
-res = await post(`/desk/activity/${team}`, { v_accuracy_1: '0', a_accuracy_1_s1: '50', a_accuracy_1_s2: '0', a_accuracy_1_s3: '0', a_accuracy_1_s4: '0', a_accuracy_1_s5: '0', a_accuracy_1_player: String(player) });
-const detail = row('accuracy', 1);
-res = await q({ q_accuracy_1: '1', qv_accuracy_1: String(detail.updated_at) });
-ok(row('accuracy', 1).score === detail.score && JSON.parse(row('accuracy', 1).raw).shots, 'a result recorded in detail is not replaced from the table');
+const fin = (st) => db.prepare('SELECT * FROM station_final WHERE team_id = ? AND station = ?').get(team, st);
+res = await q({ f_pin: '3.6', fv_pin: '0', f_red_bull: '4', fv_red_bull: '0', f_on: '3.5', fv_on: '0' });
+ok(res.status === 303 && fin('pin').points === 3.6 && fin('red_bull').points === 4 && fin('on').points === 3.5, 'final points typed into the boxes are saved');
+page = await pageOf(`/desk/activity?team=${team}`);
+ok(page.includes('11 of 21 results in') && page.includes('<b>11.1</b>'), 'the school total counts the three finals (11.1 points, 11 of 21 results)');
+res = await q({ f_satu: '6', fv_satu: '0', f_accuracy: '2', fv_accuracy: '0' });
+ok(/err=/.test(loc(res)) && !fin('accuracy') && !fin('satu'), 'one bad box saves nothing from that row');
+res = await q({ f_red_bull: '2.5', fv_red_bull: String(fin('red_bull').at) });
+ok(/err=/.test(loc(res)) && fin('red_bull').points === 4, 'a Flip Cup sum must be whole');
+res = await q({ f_pin: '2', fv_pin: '0' });
+ok(/err=/.test(loc(res)) && fin('pin').points === 3.6, 'a stale box cannot overwrite another device');
+res = await q({ f_pin: '2', fv_pin: String(fin('pin').at) });
+ok(fin('pin').points === 2 && db.prepare("SELECT COUNT(*) n FROM activity_log WHERE station = 'pin'").get().n === 2, 'a correction is saved and logged');
+res = await post(`/desk/activity/${team}`, { v_pin_1: '0', a_pin_1_score: '5', a_pin_1_player: String(player) });
+page = await pageOf(`/desk/activity?team=${team}`);
+ok(page.includes('<b>9.5</b>'), 'showdown results stay on record but are not added on top of a final');
+res = await q({ f_pin: '', fv_pin: String(fin('pin').at) });
+ok(!fin('pin'), 'emptying a box removes the final');
 res = await q({ q_bonus: '4' });
 ok(!db.prepare('SELECT 1 x FROM bonus WHERE team_id = ?').get(team), 'the desk cannot set starting points from the table');
 res = await q({ q_bonus: '4' }, 'testadmin');
 ok(db.prepare('SELECT points FROM bonus WHERE team_id = ?').get(team)?.points === 4, 'an admin can');
-ok((await pageOf(`/desk/activity?team=${team}`)).includes('name="q_pin_3"'), 'the overview table has editable cells');
-res = await q({ q_pin_3: '2' }, 'testcap');
-ok(res.status === 403, 'a captain cannot use quick entry');
+ok((await pageOf(`/desk/activity?team=${team}`)).includes('name="f_pin"'), 'the overview table has one box per station');
+res = await q({ f_pin: '2' }, 'testcap');
+ok(res.status === 403, 'a captain cannot use it');
 
 // --- Gold Americano ---
 const rosterBefore = db.prepare('SELECT COUNT(*) n FROM players').get().n;

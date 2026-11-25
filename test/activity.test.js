@@ -131,18 +131,31 @@ test('scores match the organizer\'s reference module', { skip: !fs.existsSync(re
   near(ours.total, theirTotal);
 });
 
-test('quick entry from the overview: points per showdown, with each station\'s own limits', async () => {
-  const { readQuick } = await import('../src/activity.js');
-  assert.deepEqual(readQuick('pin', ''), { blank: true });
-  assert.equal(readQuick('pin', '4').score, 4);
-  assert.ok(readQuick('pin', '3.5').error, 'Pin is whole numbers');
-  assert.ok(readQuick('pin', '6').error);
-  assert.equal(readQuick('satu', '3,5').score, 3.5);
-  assert.equal(readQuick('accuracy', '2.75').score, 2.75);
-  assert.equal(readQuick('on', '3.5').score, 3.5);
-  assert.ok(readQuick('on', '3.3').error, 'On counts half points');
-  assert.equal(readQuick('red_bull', '1').score, 1);
-  assert.ok(readQuick('red_bull', '0.5').error);
-  assert.ok(readQuick('accuracy', 'abc').error);
-  assert.equal(readQuick('pin', '0').score, 0, 'a real zero is not blank');
+test('a final total typed into the overview table: 0 to 5, with each station\'s own steps', async () => {
+  const { readFinal } = await import('../src/activity.js');
+  assert.deepEqual(readFinal('pin', ''), { blank: true });
+  assert.equal(readFinal('pin', '3.6').score, 3.6);
+  assert.equal(readFinal('satu', '3,5').score, 3.5);
+  assert.equal(readFinal('accuracy', '3.2').score, 3.2);
+  assert.equal(readFinal('pin', '0').score, 0, 'a real zero is not blank');
+  assert.ok(readFinal('pin', '5.1').error);
+  assert.ok(readFinal('pin', 'x').error);
+  assert.equal(readFinal('red_bull', '4').score, 4);
+  assert.ok(readFinal('red_bull', '3.5').error, 'the Flip Cup sum is whole');
+  assert.equal(readFinal('on', '3.5').score, 3.5);
+  assert.ok(readFinal('on', '3.3').error);
+});
+
+test('a final total stands in for the station; the rest stay pending', () => {
+  const r = summarize([{ station: 'pin', slot: 1, score: 5 }], { pin: 3.6, on: 4 });
+  assert.equal(r.stations.pin.points, 3.6);
+  assert.equal(r.stations.pin.final, true);
+  assert.equal(r.stations.on.complete, true);
+  assert.equal(r.stations.satu.complete, false);
+  near(r.banked, 7.6);
+  assert.equal(r.entered, 6, 'a final counts all five showdowns of its station, the On result counts one');
+  assert.equal(r.total, null, 'not final until every station is in');
+  const all = summarize([], { pin: 3.6, satu: 3.5, accuracy: 3.2, on: 3.5, red_bull: 4 });
+  assert.equal(all.complete, true);
+  near(all.total, 17.8);
 });

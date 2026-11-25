@@ -582,3 +582,11 @@ tr.is-tied small{color:#b4291d}
 .yard-table td.yq-cell{text-align:left}
 .yard-table td.yq-cell small{text-align:left}
 .tournament-table.yard-table thead th:not(:first-child){text-align:left!important}
+
+/* One final-points box per station in the School Yard overview */
+.yard-table{min-width:0}
+.yq-final input[type=number]{display:block;width:5rem;min-height:42px;padding:.2rem .3rem;text-align:center;font-weight:900;font-size:1.05rem}
+.yq-final input::placeholder{color:#91a0b0;font-weight:400}
+.yq-final small{display:block;margin-top:.25rem;max-width:8.5rem;line-height:1.25;white-space:normal}
+.yq-plain{font-size:1.05rem}
+.yard-table td.yq-final{vertical-align:top}

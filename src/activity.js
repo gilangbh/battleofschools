@@ -121,21 +121,18 @@ function scoreAttempt(stationId, f, ctx = {}) {
 }
 
 /**
- * Quick entry from the overview table: the points a station earned in one showdown, typed straight into a cell.
- * It records no participants, so the detailed form remains the place for player and spectator checks.
- * Returns { blank: true }, { error } or { score, raw }.
+ * A station's final points typed into the overview table: 0 to 5. A relay count is a whole number, and On Running
+ * counts half a point per length. Returns { blank: true }, { error } or { score }.
  */
-export function readQuick(stationId, value) {
+export function readFinal(stationId, value) {
   const v = text(value).replace(',', '.');
   if (v === '') return { blank: true };
   const name = STATION_BY_ID.get(stationId)?.name || stationId;
-  const n = /^\d+(\.\d+)?$/.test(v) ? Number(v) : NaN;
-  const bad = (why) => ({ error: `${name}: ${why}` });
-  if (!(n >= 0 && n <= STATION_MAX)) return bad(`points are 0 to ${STATION_MAX}.`);
-  if (stationId === 'pin' && !Number.isInteger(n)) return bad('Pin the Cut scores are whole numbers, 0 to 5.');
-  if (stationId === 'on' && !Number.isInteger(n * 2)) return bad('lengths count half a point each, so use steps of 0.5.');
-  if (stationId === 'red_bull' && n !== 0 && n !== 1) return bad('a relay is 1 (completed) or 0 (not completed).');
-  return { score: n, raw: { quick: true, points: n } };
+  const n = /^\d+(\.\d{1,4})?$/.test(v) ? Number(v) : NaN;
+  if (!(n >= 0 && n <= STATION_MAX)) return { error: `${name}: enter the final points, 0 to ${STATION_MAX}.` };
+  if (stationId === 'red_bull' && !Number.isInteger(n)) return { error: 'Flip Cup: the final is the sum of five relays, a whole number from 0 to 5.' };
+  if (stationId === 'on' && !Number.isInteger(n * 2)) return { error: 'On Running: lengths count half a point each, so use steps of 0.5.' };
+  return { score: n };
 }
 
 /** A stored result in the shape of the entry fields, so an edit starts from what was recorded. */
@@ -149,7 +146,7 @@ export function fieldsFromRaw(stationId, x) {
  * One school's School Yard position from its recorded attempts ([{ station, slot, score }]).
  * `banked` is what the recorded attempts are worth so far; `total` is set only when all 21 results are in.
  */
-export function summarize(allRows = []) {
+export function summarize(allRows = [], finals = {}) {
   // A result held for committee review is on record but not counted, so its slot stays pending.
   const rows = allRows.filter((r) => !r.held);
   const held = allRows.length - rows.length;
@@ -160,10 +157,14 @@ export function summarize(allRows = []) {
     const need = slotsFor(st).length;
     const scores = rows.filter((r) => r.station === st.id).map((r) => r.score);
     const sum = scores.reduce((a, b) => a + b, 0);
-    const points = Math.min(st.agg === 'mean' ? sum / ROUNDS : sum, STATION_MAX);
-    stations[st.id] = { count: scores.length, need, points, complete: scores.length === need };
+    const fromShowdowns = Math.min(st.agg === 'mean' ? sum / ROUNDS : sum, STATION_MAX);
+    // A final total typed into the overview table stands in for the whole station.
+    const final = finals[st.id] != null;
+    const points = final ? Math.min(finals[st.id], STATION_MAX) : fromShowdowns;
+    const count = final ? need : scores.length;
+    stations[st.id] = { count, need, points, complete: count === need, final, fromShowdowns: scores.length ? fromShowdowns : null, attempts: scores.length };
     banked += points;
-    entered += scores.length;
+    entered += count;
   }
   const complete = entered === RESULTS_NEEDED;
   return { stations, banked, entered, held, needed: RESULTS_NEEDED, complete, total: complete ? banked : null };

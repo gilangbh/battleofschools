@@ -124,6 +124,16 @@ CREATE TABLE IF NOT EXISTS am_matches (
 );
 `);
 
+// A school's final points for one station, typed straight into the overview table. When present it is used for
+// the standings in place of the showdown-by-showdown results, which stay on record as evidence.
+db.exec(`
+CREATE TABLE IF NOT EXISTS station_final (
+  team_id TEXT NOT NULL REFERENCES teams(id), station TEXT NOT NULL, points REAL NOT NULL,
+  by_user INTEGER, at INTEGER NOT NULL,
+  PRIMARY KEY (team_id, station)
+);
+`);
+
 export const all = (sql, ...p) => db.prepare(sql).all(...p);
 export const get = (sql, ...p) => db.prepare(sql).get(...p);
 export const run = (sql, ...p) => db.prepare(sql).run(...p);

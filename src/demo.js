@@ -24,6 +24,7 @@ export function loadDemo() {
     run('DELETE FROM tickets');
     // School Yard results for the two finished rounds, so the standings show a mix of recorded and pending.
     run('DELETE FROM activity');
+    run('DELETE FROM station_final');
     run('DELETE FROM activity_log');
     run('DELETE FROM bonus');
     const yard = (team, station, slot, score) => run('INSERT INTO activity (team_id, station, slot, score, raw, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)', team, station, slot, score, '{"demo":true}', now, now);

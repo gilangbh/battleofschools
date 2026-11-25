@@ -9,7 +9,7 @@ if (!file || !process.env.DATA_DIR) { console.error('Usage: DATA_DIR=<empty fold
 const backup = JSON.parse(fs.readFileSync(file, 'utf8'));
 const { db } = await import('../src/db.js'); // creates an empty database with the current tables
 
-const ORDER = ['settings', 'teams', 'players', 'showdowns', 'matches', 'lineups', 'tickets', 'activity', 'activity_log', 'bonus', 'award', 'award_log', 'am_players', 'am_matches'];
+const ORDER = ['settings', 'teams', 'players', 'showdowns', 'matches', 'lineups', 'tickets', 'activity', 'station_final', 'activity_log', 'bonus', 'award', 'award_log', 'am_players', 'am_matches'];
 if (db.prepare('SELECT COUNT(*) AS n FROM teams').get().n > 0) { console.error('This DATA_DIR already has tournament data. Restore into an empty folder.'); process.exit(1); }
 
 db.exec('BEGIN');

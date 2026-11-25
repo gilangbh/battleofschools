@@ -141,8 +141,11 @@ export function loadState() {
   const bonusRows = all('SELECT * FROM bonus');
   const bonusByTeam = new Map(bonusRows.map((b) => [b.team_id, b.points]));
   const bonusInfo = new Map(bonusRows.map((b) => [b.team_id, b]));
-  const yardByTeam = new Map(teams.map((t) => [t.id, summarize(activityRows.filter((r) => r.team_id === t.id))]));
-  const yardStarted = activityRows.length > 0 || bonusByTeam.size > 0;
+  const finalRows = all('SELECT * FROM station_final');
+  const finalsByTeam = new Map(teams.map((t) => [t.id, Object.fromEntries(finalRows.filter((r) => r.team_id === t.id).map((r) => [r.station, r.points]))]));
+  const finalInfo = new Map(finalRows.map((r) => [`${r.team_id}:${r.station}`, r]));
+  const yardByTeam = new Map(teams.map((t) => [t.id, summarize(activityRows.filter((r) => r.team_id === t.id), finalsByTeam.get(t.id))]));
+  const yardStarted = activityRows.length > 0 || bonusByTeam.size > 0 || finalRows.length > 0;
   const extraByTeam = new Map(teams.map((t) => {
     const y = yardByTeam.get(t.id);
     return [t.id, { yard: y.banked, bonus: bonusByTeam.get(t.id) || 0, pending: !y.complete || !bonusByTeam.has(t.id), yardIn: y.entered, bonusIn: bonusByTeam.has(t.id) }];
@@ -171,7 +174,7 @@ export function loadState() {
 
   return {
     settings, courts, teams, teamById, players, allPlayers, playerById, showdowns, sdById, matchById, allMatches,
-    activityRows, yardByTeam, bonusByTeam, bonusInfo, yardStarted, standings, appearances, ticketsByTeam, live, recent,
+    activityRows, finalInfo, yardByTeam, bonusByTeam, bonusInfo, yardStarted, standings, appearances, ticketsByTeam, live, recent,
     groupsSet: teams.some((t) => t.grp),
     knockout: showdowns.filter((s) => isKnockout(s.stage)),
   };
@@ -259,6 +262,7 @@ export function resetResults({ lineups = true, yard = true } = {}) {
     }
     if (yard) {
       run('DELETE FROM activity');
+      run('DELETE FROM station_final');
       run('DELETE FROM activity_log');
       run('DELETE FROM bonus');
     }
