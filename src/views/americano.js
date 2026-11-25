@@ -1,6 +1,6 @@
 // Gold Americano: the desk page (scores, table, setup) and its TV screen.
 import { h, raw, layout, teamMark, flash, ICON } from './ui.js';
-import { MATCH_POINTS } from '../americano.js';
+import { MAX_POINTS } from '../americano.js';
 import { tvFrame } from './public.js';
 
 const opt = (value, label, selected) => h`<option value="${value}"${selected ? raw(' selected') : ''}>${label}</option>`;
@@ -38,15 +38,15 @@ export function americanoPage(am, user, query) {
     <p class="lock-banner"><b>Separate from the school tournament.</b> Nothing entered here touches school standings, regular-player appearances or the Golden Tickets.</p>
 
     ${am.matches.length ? h`<section aria-labelledby="am-scores"><h2 id="am-scores">Matches</h2>
-      <p class="footnote">Each match is ${MATCH_POINTS} rally points in total, so the two scores add up to ${MATCH_POINTS}. An 8–8 draw is allowed. Leave a match empty until it has been played; empty both boxes to remove a score.</p>
+      <p class="footnote">Enter the rally points each pair scored. There is no fixed total and a draw is allowed. Leave a match empty until it has been played; empty both boxes to remove a score.</p>
       <form method="post" action="/desk/americano/scores" data-dirty-form>
         <ul class="am-rounds" role="list">${am.matches.map((m) => h`<li class="am-round${m.status === 'done' ? ' is-done' : ''}">
           <p class="am-round-head"><b>Round ${m.round}</b>${m.bye != null ? h`<span>Sits out: ${who(am, m.bye)?.name || '?'}</span>` : ''}</p>
           <div class="am-match">
             <span class="am-pair">${pairText(am, m.a1, m.a2)}</span>
-            <input type="number" inputmode="numeric" min="0" max="${MATCH_POINTS}" step="1" name="a_${m.id}" value="${m.score_a ?? ''}" aria-label="Round ${m.round}, points for ${pairText(am, m.a1, m.a2)}">
+            <input type="number" inputmode="numeric" min="0" max="${MAX_POINTS}" step="1" name="a_${m.id}" value="${m.score_a ?? ''}" aria-label="Round ${m.round}, points for ${pairText(am, m.a1, m.a2)}">
             <i>–</i>
-            <input type="number" inputmode="numeric" min="0" max="${MATCH_POINTS}" step="1" name="b_${m.id}" value="${m.score_b ?? ''}" aria-label="Round ${m.round}, points for ${pairText(am, m.b1, m.b2)}">
+            <input type="number" inputmode="numeric" min="0" max="${MAX_POINTS}" step="1" name="b_${m.id}" value="${m.score_b ?? ''}" aria-label="Round ${m.round}, points for ${pairText(am, m.b1, m.b2)}">
             <span class="am-pair is-b">${pairText(am, m.b1, m.b2)}</span>
           </div></li>`)}</ul>
         <div class="save-bar"><button class="button" type="submit">Save scores</button><span class="save-note" data-dirty-note>No unsaved changes.</span></div>
@@ -105,7 +105,7 @@ export function americanoPartial(am) {
 <section class="am-tv" aria-label="Gold Americano">
   <div class="am-tv-col">
     ${winner ? h`<div class="am-tv-champ">${face(am, winner, 'is-big')}<div><small><span class="tournament-sport-mark">${ICON.trophy}</span>Gold Americano winner</small><strong>${winner.name}</strong>${runner ? h`<span>Runner-up: ${runner.name}</span>` : ''}</div></div>`
-      : h`<div class="am-tv-intro"><small>Individual event · Championship Court 3</small><strong>${MATCH_POINTS} rally points a match</strong><span>${b.needsPlayoff ? 'Level at the top: a playoff decides it' : 'New partner every round. Most points wins.'}</span></div>`}
+      : h`<div class="am-tv-intro"><small>Individual event · Championship Court 3</small><strong>Rally points, five rounds</strong><span>${b.needsPlayoff ? 'Level at the top: a playoff decides it' : 'New partner every round. Most points wins.'}</span></div>`}
     <table class="am-tv-table">
       <thead><tr><th></th><th scope="col">Player</th><th scope="col">Played</th><th scope="col">W–D–L</th><th scope="col">Points</th></tr></thead>
       <tbody>${b.rows.map((r) => h`<tr class="${am.placing.winner === r.player.id || (!am.placing.winner && r.rank === 1 && r.played) ? 'is-top' : ''}">

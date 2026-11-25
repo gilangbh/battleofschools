@@ -34,12 +34,13 @@ test('four players: three rounds, each partners the other three once; other size
   assert.equal(schedule([1, 2, 3, 4, 5, 6]), null);
 });
 
-test('a match is 16 rally points in total, and 8–8 is allowed', () => {
+test('any whole-number score is accepted, draws included, with no fixed total', () => {
   assert.equal(validateScore(10, 6), null);
   assert.equal(validateScore(8, 8), null);
-  assert.equal(validateScore(16, 0), null);
-  assert.ok(validateScore(9, 6));
-  assert.ok(validateScore(11, 6));
+  assert.equal(validateScore(17, 0), null);
+  assert.equal(validateScore(9, 6), null);
+  assert.equal(validateScore(11, 6), null);
+  assert.ok(validateScore(150, 3), 'a typing mistake is refused');
   assert.ok(validateScore(8.5, 7.5));
   assert.ok(validateScore(-1, 17));
 });
@@ -51,7 +52,7 @@ test('the table adds each player\'s rally points and names an outright winner an
   const matches = rounds.map((r, i) => ({ round: r.round, a1: r.a[0], a2: r.a[1], b1: r.b[0], b2: r.b[1], bye: r.bye, score_a: scores[i][0], score_b: scores[i][1], status: 'done' }));
   const t = leaderboard(players, matches);
   assert.equal(t.finished, true);
-  assert.equal(t.rows.reduce((n, r) => n + r.points, 0), 5 * 16 * 2, 'every rally point is credited to two players');
+  assert.equal(t.rows.reduce((n, r) => n + r.points, 0), scores.reduce((n, [x, y]) => n + 2 * (x + y), 0), 'every rally point is credited to two players');
   assert.ok(t.rows.every((r) => r.played === 4 && r.byes === 1));
   for (const r of t.rows) assert.equal(r.won + r.drawn + r.lost, 4);
   const sorted = [...t.rows].map((r) => r.points);

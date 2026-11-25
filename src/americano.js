@@ -1,10 +1,10 @@
 // Gold Americano: a separate individual event for the Gold Players. Kept free of database and HTTP.
 // It has nothing to do with school standings, regular-player appearances or the tactical tickets.
 //
-// Every match is 16 rally points in total, so a score is any split of 16, including an 8–8 draw.
+// An exhibition: the committee set no total per match, so any whole-number score is accepted, draws included.
 // A player's tally is the rally points their pair won across their matches.
 
-export const MATCH_POINTS = 16;
+export const MAX_POINTS = 99; // only a guard against typing mistakes
 
 /**
  * The rounds for a list of player ids.
@@ -26,7 +26,7 @@ export function schedule(ids) {
 
 export function validateScore(a, b) {
   if (!Number.isInteger(a) || !Number.isInteger(b) || a < 0 || b < 0) return 'Enter both scores as whole numbers.';
-  if (a + b !== MATCH_POINTS) return `Each match is ${MATCH_POINTS} rally points in total, so the two scores must add up to ${MATCH_POINTS} (for example 10–6 or 8–8).`;
+  if (a > MAX_POINTS || b > MAX_POINTS) return `Scores above ${MAX_POINTS} look like a typing mistake.`;
   return null;
 }
 
