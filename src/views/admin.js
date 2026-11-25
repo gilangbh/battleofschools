@@ -196,6 +196,10 @@ function settingsTab(state, visibility) {
     <input type="hidden" name="visibility" value="${visibility}"><button class="button" type="submit">Save settings</button>
   </form>
 </section>
+<section><h2>Emails</h2>
+  <p>The app sends one email: the sign-in link. Check how it looks before relying on it.</p>
+  <p class="form-actions"><a class="button ghost small" href="/admin/email-preview" target="_blank" rel="noopener">Preview the sign-in email ↗</a><a class="button ghost small" href="/admin/email-preview?format=text" target="_blank" rel="noopener">Plain-text version ↗</a></p>
+</section>
 <section><h2>Backup</h2>
   <p>Downloads every school, player, fixture, lineup, score, ticket and School Yard result as one file. Logins and sign-in links are not included.</p>
   <a class="button ghost" href="/admin/export.json">Download backup</a>

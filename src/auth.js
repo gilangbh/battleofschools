@@ -1,5 +1,6 @@
 import crypto from 'node:crypto';
 import { get, run } from './db.js';
+import { loginEmail } from './email.js';
 
 const COOKIE = 'bos_sid';
 const SESSION_MS = 14 * 24 * 60 * 60 * 1000;
@@ -98,14 +99,16 @@ export async function sendLoginEmail(email, url) {
     console.log(`[login link for ${email}] ${url}`);
     return false;
   }
+  const mail = loginEmail({ url, minutes: Math.round(EMAIL_LINK_MS / 60000) });
   const res = await fetch('https://api.resend.com/emails', {
     method: 'POST',
     headers: { Authorization: `Bearer ${process.env.RESEND_API_KEY}`, 'Content-Type': 'application/json' },
     body: JSON.stringify({
       from: process.env.MAIL_FROM,
       to: [email],
-      subject: 'Your Battle of Schools login link',
-      text: `Open this link to sign in to Battle of Schools scores:\n\n${url}\n\nThe link works once and expires in 20 minutes. If you did not ask for it, ignore this email.`,
+      subject: mail.subject,
+      html: mail.html,
+      text: mail.text,
     }),
   });
   if (!res.ok) {

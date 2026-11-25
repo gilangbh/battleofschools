@@ -22,6 +22,7 @@ import { captainPage } from './src/views/captain.js';
 import { deskPage, deskShowdownPage } from './src/views/desk.js';
 import { activityPage } from './src/views/activity.js';
 import { awardPage, AWARD_STATIONS, AWARD_KINDS } from './src/views/award.js';
+import { loginEmail } from './src/email.js';
 import { americanoPage, americanoPartial, americanoTvPage } from './src/views/americano.js';
 import { schedule as amSchedule, validateScore as amValidate } from './src/americano.js';
 import { adminPage } from './src/views/admin.js';
@@ -700,6 +701,16 @@ app.post('/admin/americano/placing', requireRole('admin'), (req, res) => {
 
 // ---------- Admin ----------
 const admin = requireRole('admin');
+
+// A look at the sign-in email, with a link that does not work. ?format=text shows the plain-text version.
+app.get('/admin/email-preview', admin, (req, res) => {
+  noStore(res);
+  const mail = loginEmail({ url: `${linkBase(req)}/auth/EXAMPLE-LINK-THAT-DOES-NOT-WORK`, minutes: 20 });
+  if (req.query.format === 'text') return res.type('text/plain').send(`Subject: ${mail.subject}
+
+${mail.text}`);
+  res.type('html').send(mail.html);
+});
 
 app.get('/admin', admin, (req, res) => {
   noStore(res);
