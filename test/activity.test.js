@@ -130,3 +130,19 @@ test('scores match the organizer\'s reference module', { skip: !fs.existsSync(re
   const theirTotal = typeof theirs.total === 'number' ? theirs.total : theirs.total?.score ?? theirs.score;
   near(ours.total, theirTotal);
 });
+
+test('quick entry from the overview: points per showdown, with each station\'s own limits', async () => {
+  const { readQuick } = await import('../src/activity.js');
+  assert.deepEqual(readQuick('pin', ''), { blank: true });
+  assert.equal(readQuick('pin', '4').score, 4);
+  assert.ok(readQuick('pin', '3.5').error, 'Pin is whole numbers');
+  assert.ok(readQuick('pin', '6').error);
+  assert.equal(readQuick('satu', '3,5').score, 3.5);
+  assert.equal(readQuick('accuracy', '2.75').score, 2.75);
+  assert.equal(readQuick('on', '3.5').score, 3.5);
+  assert.ok(readQuick('on', '3.3').error, 'On counts half points');
+  assert.equal(readQuick('red_bull', '1').score, 1);
+  assert.ok(readQuick('red_bull', '0.5').error);
+  assert.ok(readQuick('accuracy', 'abc').error);
+  assert.equal(readQuick('pin', '0').score, 0, 'a real zero is not blank');
+});

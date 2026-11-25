@@ -552,3 +552,33 @@ tr.is-tied small{color:#b4291d}
 @media(max-width:640px){.am-match{grid-template-columns:1fr 1fr;grid-template-areas:"pa pb" "sa sb"}.am-match i{display:none}.am-pair{text-align:left}}
 .bonus-grid input{width:5.5rem;text-align:center;font-weight:900;font-size:1.1rem}
 .am-tv-champ small .tournament-sport-mark{flex:none;display:grid;place-items:center;width:2.8vh;height:2.8vh}
+
+/* Quick entry cells in the School Yard overview */
+.yq-unit{display:block;font-size:.58rem;font-weight:400;letter-spacing:.04em;text-transform:none;opacity:.7}
+.yq-grid{display:flex;gap:.2rem}
+.yq-grid input{display:block;width:2.6rem;min-height:36px;padding:.15rem .1rem;text-align:center;font-size:.92rem;font-weight:600}
+.yq-grid input::placeholder{color:#91a0b0;font-weight:400}
+.yq-lock{display:grid;place-items:center;width:2.6rem;height:36px;background:#14305914;border:1px solid var(--line);font-weight:900;font-size:.92rem;cursor:help}
+.yq-lock.is-held{background:#fde9b8}
+.yard-table td.yq-cell{vertical-align:top;padding-block:.5rem}
+.yard-table td.yq-cell small{margin-top:.25rem}
+.yq-save{text-align:right}
+.yq-save .button{min-height:40px;padding:6px 16px}
+.yq-save .button.is-dirty{background:var(--lime);color:var(--navy);border-color:var(--lime)}
+.yard-table tr.is-dirty{background:#c1d05222}
+.yard-table{min-width:66rem}
+.yard-table tbody th[scope=row]{min-width:11.5rem;white-space:nowrap}
+.yard-table thead th{text-align:left;white-space:nowrap}
+.yq-grid input{width:2.3rem}
+.yq-lock{width:2.3rem}
+.yard-table td.yq-save{position:sticky;right:0;background:var(--cream);box-shadow:-.6rem 0 .6rem -.6rem #0d2b5540}
+.yard-table tr.is-current td.yq-save{background:#eef0d8}
+.yard-table tr.is-dirty td.yq-save{background:#e8efc4}
+.yard-table tbody th[scope=row]{min-width:15rem}
+.yq-grid input,.yq-lock{width:2.75rem}
+.yq-grid input{font-size:.88rem;padding-inline:.05rem}
+.yard-table{min-width:78rem}
+.yard-table thead th:not(:first-child){text-align:left}
+.yard-table td.yq-cell{text-align:left}
+.yard-table td.yq-cell small{text-align:left}
+.tournament-table.yard-table thead th:not(:first-child){text-align:left!important}

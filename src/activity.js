@@ -120,9 +120,27 @@ function scoreAttempt(stationId, f, ctx = {}) {
   return { error: 'Unknown station.' };
 }
 
+/**
+ * Quick entry from the overview table: the points a station earned in one showdown, typed straight into a cell.
+ * It records no participants, so the detailed form remains the place for player and spectator checks.
+ * Returns { blank: true }, { error } or { score, raw }.
+ */
+export function readQuick(stationId, value) {
+  const v = text(value).replace(',', '.');
+  if (v === '') return { blank: true };
+  const name = STATION_BY_ID.get(stationId)?.name || stationId;
+  const n = /^\d+(\.\d+)?$/.test(v) ? Number(v) : NaN;
+  const bad = (why) => ({ error: `${name}: ${why}` });
+  if (!(n >= 0 && n <= STATION_MAX)) return bad(`points are 0 to ${STATION_MAX}.`);
+  if (stationId === 'pin' && !Number.isInteger(n)) return bad('Pin the Cut scores are whole numbers, 0 to 5.');
+  if (stationId === 'on' && !Number.isInteger(n * 2)) return bad('lengths count half a point each, so use steps of 0.5.');
+  if (stationId === 'red_bull' && n !== 0 && n !== 1) return bad('a relay is 1 (completed) or 0 (not completed).');
+  return { score: n, raw: { quick: true, points: n } };
+}
+
 /** A stored result in the shape of the entry fields, so an edit starts from what was recorded. */
 export function fieldsFromRaw(stationId, x) {
-  if (!x || x.demo) return {};
+  if (!x || x.demo || x.quick) return {};
   if (stationId === 'accuracy') return { s1: x.shots[0], s2: x.shots[1], s3: x.shots[2], s4: x.shots[3], s5: x.shots[4], player: x.player, ref: x.ref ?? '' };
   return { ...x, seconds: x.seconds ?? '', ref: x.ref ?? '' };
 }

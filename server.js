@@ -15,7 +15,7 @@ import {
 import {
   validateFinalScore, validateRunningScore, validateLineup, goldReplaceError, isKnockout, ticketBalance, GOLD_DEPLOYMENTS, GOLDEN_POINTS, STAGE_LABEL,
 } from './src/rules.js';
-import { STATIONS, FIELDS, slotsFor, isBlank, readAttempt, fieldsFromRaw, personKey, BONUS_MAX, fmtPoints } from './src/activity.js';
+import { STATIONS, FIELDS, slotsFor, isBlank, readAttempt, readQuick, fieldsFromRaw, personKey, BONUS_MAX, fmtPoints } from './src/activity.js';
 import { publicPage, publicPartial, tvPage, tvPartial, loginPage, confirmLoginPage, holdingPage } from './src/views/public.js';
 import { knockoutPage, knockoutPartial, summaryPage, summaryPartial } from './src/views/tv-stages.js';
 import { captainPage } from './src/views/captain.js';
@@ -437,6 +437,63 @@ app.get('/desk/activity', requireRole('desk'), (req, res) => {
 });
 
 const activityLog = (teamId) => all('SELECT * FROM activity_log WHERE team_id = ? ORDER BY id DESC LIMIT 40', teamId);
+
+// Quick entry from the overview table: points per showdown typed straight into the cells of one row.
+// A result recorded in detail (players, spectators, booth sheet) is never replaced from here, and a cell whose
+// version is out of date is refused so a second booth cannot be overwritten.
+app.post('/desk/activity-quick/:team', requireRole('desk'), (req, res) => {
+  const state = loadState();
+  const team = state.teamById.get(req.params.team);
+  if (!team) return res.status(404).send('School not found.');
+  const cur = state.teamById.has(req.body.cur) ? req.body.cur : team.id;
+  const stored = new Map(state.activityRows.filter((r) => r.team_id === team.id).map((r) => [`${r.station}:${r.slot}`, r]));
+  const errors = [];
+  const writes = [];
+  for (const st of STATIONS) for (const slot of slotsFor(st)) {
+    const field = `q_${st.id}_${slot}`;
+    if (req.body[field] === undefined) continue; // a locked cell sends nothing
+    const had = stored.get(`${st.id}:${slot}`);
+    if (had && (had.held || !had.raw?.quick)) continue;
+    const q = readQuick(st.id, req.body[field]);
+    if (q.error) { errors.push(slot ? `${q.error} (showdown ${slot})` : q.error); continue; }
+    if (q.blank && !had) continue;
+    if (!q.blank && had && had.score === q.score) continue;
+    if (String(had ? had.updated_at : 0) !== String(req.body[`qv_${st.id}_${slot}`] ?? '0')) {
+      errors.push(`${st.name}${slot ? ` showdown ${slot}` : ''} was saved from another device while this page was open. Reload to see it.`);
+      continue;
+    }
+    writes.push(q.blank ? { st, slot, action: 'removed' } : { st, slot, action: had ? 'corrected' : 'recorded', score: q.score, raw: JSON.stringify(q.raw) });
+  }
+  // Starting points are an admin's to set.
+  let bonus;
+  let bonusChanged = false;
+  const hadBonus = state.bonusByTeam.has(team.id) ? state.bonusByTeam.get(team.id) : null;
+  if (req.user.role === 'admin' && req.body.q_bonus !== undefined) {
+    const v = String(req.body.q_bonus).trim().replace(',', '.');
+    if (v === '') bonus = null;
+    else if (!/^\d+(\.\d+)?$/.test(v) || Number(v) > BONUS_MAX || !Number.isInteger(Number(v) * 2)) errors.push(`Starting points: 0 to ${BONUS_MAX} in steps of 0.5.`);
+    else bonus = Number(v);
+    bonusChanged = bonus !== undefined && bonus !== hadBonus;
+  }
+  if (errors.length) return back(res, `/desk/activity?team=${cur}#yard-all`, 'err', `${team.name}: nothing was saved. ${errors.join(' ')}`);
+  const now = Date.now();
+  const log = (station, slot, action, score, rawJson) => run('INSERT INTO activity_log (team_id, station, slot, action, score, raw, by_user, by_email, at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)', team.id, station, slot, action, score, rawJson, req.user.id, req.user.email, now);
+  tx(() => {
+    for (const w of writes) {
+      if (w.action === 'removed') { run('DELETE FROM activity WHERE team_id = ? AND station = ? AND slot = ?', team.id, w.st.id, w.slot); log(w.st.id, w.slot, 'removed', null, null); continue; }
+      run('INSERT INTO activity (team_id, station, slot, score, raw, held, by_user, created_at, updated_at) VALUES (?, ?, ?, ?, ?, 0, ?, ?, ?) ON CONFLICT(team_id, station, slot) DO UPDATE SET score = excluded.score, raw = excluded.raw, by_user = excluded.by_user, updated_at = excluded.updated_at', team.id, w.st.id, w.slot, w.score, w.raw, req.user.id, now, now);
+      log(w.st.id, w.slot, w.action, w.score, w.raw);
+    }
+    if (bonusChanged) {
+      if (bonus === null) run('DELETE FROM bonus WHERE team_id = ?', team.id);
+      else run('INSERT INTO bonus (team_id, points, by_user, at) VALUES (?, ?, ?, ?) ON CONFLICT(team_id) DO UPDATE SET points = excluded.points, by_user = excluded.by_user, at = excluded.at', team.id, bonus, req.user.id, now);
+      log('bonus', 0, bonus === null ? 'removed' : hadBonus === null ? 'recorded' : 'corrected', bonus, null);
+    }
+  });
+  const n = writes.length + (bonusChanged ? 1 : 0);
+  const fresh = loadState().yardByTeam.get(team.id);
+  back(res, `/desk/activity?team=${cur}#yard-all`, 'msg', n ? `${team.name}: saved ${n} change${n === 1 ? '' : 's'}. School Yard so far ${fmtPoints(fresh.banked)} from ${fresh.entered} of ${fresh.needed} results.` : `${team.name}: nothing had changed.`);
+});
 
 // One save for the whole school: every attempt that was typed in, plus the School Spirit bonus.
 // Rows left empty stay pending. Nothing is saved unless every typed row is valid.

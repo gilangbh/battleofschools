@@ -237,3 +237,13 @@ document.addEventListener('click', (e) => {
     send(box, { remove: true }, 'Removing…');
   });
 })();
+
+// School Yard overview: highlight a row, and its Save button, once a cell in it has been changed.
+document.addEventListener('input', (e) => {
+  const cell = e.target.closest('.yq-cell');
+  if (!cell || !e.target.form) return;
+  const row = cell.closest('tr');
+  row.classList.add('is-dirty');
+  const save = row.querySelector('.yq-save .button');
+  if (save) save.classList.add('is-dirty');
+});
