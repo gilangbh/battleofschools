@@ -63,11 +63,12 @@ export function backfillPhotos() {
   }
 }
 
-export function ensureAdmin(email) {
-  if (!email) return;
-  const e = email.trim().toLowerCase();
-  if (!get('SELECT 1 AS x FROM users WHERE email = ?', e)) {
-    run('INSERT INTO users (email, name, role) VALUES (?, ?, ?)', e, 'Admin', 'admin');
+/** Makes sure each address in ADMIN_EMAIL (one, or several separated by commas) has an admin login. */
+export function ensureAdmin(emails) {
+  for (const e of String(emails || '').split(',').map((x) => x.trim().toLowerCase()).filter(Boolean)) {
+    const user = get('SELECT * FROM users WHERE email = ?', e);
+    if (!user) run('INSERT INTO users (email, name, role) VALUES (?, ?, ?)', e, 'Admin', 'admin');
+    else if (user.role !== 'admin') run("UPDATE users SET role = 'admin', team_id = NULL WHERE id = ?", user.id);
   }
 }
 

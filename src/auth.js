@@ -112,6 +112,7 @@ export async function sendLoginEmail(email, url) {
     console.error('Login email failed', res.status, await res.text());
     throw new Error('The login email could not be sent.');
   }
+  console.log('Login email accepted by the mail service');
   return true;
 }
 
