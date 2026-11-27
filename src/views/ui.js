@@ -50,8 +50,8 @@ export function pairNames(state, m, side) {
   const l = m.lineup[side];
   if (!l || !m.revealed) return null;
   const teamId = side === 'a' ? m.sd.team_a : m.sd.team_b;
-  const gold = state.teamById.get(teamId)?.gold;
   const sub = m.tickets.find((t) => t.team_id === teamId && t.type === 'gold_player');
+  const gold = sub?.gold;
   const goldName = `${gold ? gold.name : 'Gold Player'} ★`;
   return [l.player1, l.player2].map((p) => {
     if (!p) return '?';

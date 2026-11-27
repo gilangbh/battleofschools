@@ -83,7 +83,7 @@ function teamBlock(state, m, side) {
   const hasGold = mine.some((t) => t.type === 'gold_player');
   const hasPoint = mine.some((t) => t.type === 'golden_point');
   const canPoint = bal.pointLeft > 0 && !hasGold;
-  const canGoldHere = bal.goldLeft > 0 && !hasGold && !hasPoint && Boolean(team.gold);
+  const canGoldHere = bal.goldLeft > 0 && !hasGold && !hasPoint && team.goldOptions.length > 0;
   const left = canPoint || canGoldHere ? 1 : 0;
   const pid = `${m.id}-${side}`;
   const sel = (name, selected) => h`<select name="${name}" required aria-label="${name === 'p1' ? 'First player' : 'Second player'}"><option value="">Choose player</option>${team.regulars.map((p) => h`<option value="${p.id}"${selected === p.id ? raw(' selected') : ''}>${p.name} · ${LEVEL_LABEL[p.level]}${p.gender ? ` · ${p.gender}` : ''}</option>`)}</select>`;
@@ -122,14 +122,13 @@ function teamBlock(state, m, side) {
         <span>Called at 40–40: wins the point and the game. If both schools call it, record only the school that won the rock-paper-scissors.</span>
       </div>` : h`<div class="ticket-option"><span class="is-missing">${hasGold ? 'No Golden Point here: this school has a Gold Player in this match.' : 'No Golden Points left.'}</span></div>`}
       ${canGoldHere ? h`<div class="ticket-option is-stack">
-        <span><strong>${team.gold.name} ★</strong> plays instead of the highest-rated player of the pair, same gender only:</span>
+        ${team.goldOptions.map((g) => h`<span><strong>${g.name} ★</strong>${g.freeId ? ' (organizer Gold)' : ''} plays instead of the highest-rated player of the pair, same gender only:</span>
         ${l ? h`<div class="ticket-buttons">${[l.player1, l.player2].filter(Boolean).map((p) => {
-            const why = goldReplaceError(team.gold, l.player1, l.player2, p);
-            return why ? h`<span class="ticket-no"><b>${p.name}</b> ${why}</span>` : h`<button class="button small lime" type="submit" name="use" value="out:${p.id}">${p.name}</button>`;
-          })}</div>
-          <div class="ticket-when"><label><input type="radio" name="timing" value="start" checked> Before the first serve</label><label><input type="radio" name="timing" value="after_g2"> After game 2</label></div>`
-          : h`<span class="is-missing">Add the pair first.</span>`}
-      </div>` : h`<div class="ticket-option"><span class="is-missing">${hasGold ? 'Gold Player already in this match.' : hasPoint ? 'No Gold Player here: this school used a Golden Point in this match.' : !team.gold ? 'This school has no approved Gold Player.' : 'No Gold Player deployments left.'}</span></div>`}
+            const why = goldReplaceError(g, l.player1, l.player2, p);
+            return why ? h`<span class="ticket-no"><b>${p.name}</b> ${why}</span>` : h`<button class="button small lime" type="submit" name="use" value="out:${p.id}${g.freeId ? `:${g.freeId}` : ''}">${p.name}</button>`;
+          })}</div>` : h`<span class="is-missing">Add the pair first.</span>`}`)}
+        ${l ? h`<div class="ticket-when"><label><input type="radio" name="timing" value="start" checked> Before the first serve</label><label><input type="radio" name="timing" value="after_g2"> After game 2</label></div>` : ''}
+      </div>` : h`<div class="ticket-option"><span class="is-missing">${hasGold ? 'Gold Player already in this match.' : hasPoint ? 'No Gold Player here: this school used a Golden Point in this match.' : !team.goldOptions.length ? 'This school has no approved Gold Player.' : 'No Gold Player deployments left.'}</span></div>`}
     </form>`}
   </div>`;
 }

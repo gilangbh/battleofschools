@@ -108,8 +108,9 @@ export function playerStats(state) {
       const sub = m.tickets.find((t) => t.team_id === team.id && t.type === 'gold_player');
       for (const p of [l.player1, l.player2]) {
         // A Gold Player who started the match takes the credit; one who came in after game 2 shares it.
-        if (sub && p && sub.player_out === p.id && team.gold) {
-          add(team.gold, team, w === key, games);
+        if (sub && p && sub.player_out === p.id && sub.gold) {
+          // A pool player is counted once per school they played for, apart from the roster's player ids.
+          add(sub.free_gold_id ? { ...sub.gold, id: `pool-${sub.free_gold_id}-${team.id}`, is_gold: 1 } : sub.gold, team, w === key, games);
           if (sub.timing === 'start') continue;
         }
         add(p, team, w === key, games);

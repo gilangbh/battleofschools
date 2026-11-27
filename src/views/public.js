@@ -215,7 +215,7 @@ export function onCourt(state, m, side) {
   const team = side === 'a' ? m.sd.a : m.sd.b;
   const sub = m.tickets.find((t) => t.team_id === team.id && t.type === 'gold_player' && t.timing === 'start');
   return [l.player1, l.player2].filter(Boolean).map((p) => {
-    if (sub && sub.player_out === p.id) return { name: team.gold ? team.gold.name : 'Gold Player', photo: team.gold?.photo || null, gold: true };
+    if (sub && sub.player_out === p.id) return { name: sub.gold ? sub.gold.name : 'Gold Player', photo: sub.gold?.photo || null, gold: true };
     return { name: p.name, photo: p.photo || null, gold: false };
   });
 }

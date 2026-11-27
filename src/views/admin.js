@@ -177,8 +177,22 @@ function playersTab(state, teamId) {
     </table></div>
     <div class="save-bar"><button class="button" type="submit">Save ${team.name}</button><span class="save-note" data-dirty-note>No unsaved changes.</span></div>
   </form>
-  <p class="footnote">The name in bold is the short name shown on scoreboards; the registered full name and jersey name sit under it. A school’s Gold Player is an extra player with “Gold Player ★” on, and may only be deployed while “Active” is on, so keep a nominee switched off until the committee approves. Turn “Active” off for a player who has withdrawn.</p>
+  <p class="footnote">Gold Players have no committee category: the level shown for them is not used by any rule. The name in bold is the short name shown on scoreboards; the registered full name and jersey name sit under it. A school’s Gold Player is an extra player with “Gold Player ★” on, and may only be deployed while “Active” is on, so keep a nominee switched off until the committee approves. Turn “Active” off for a player who has withdrawn.</p>
 </section>`;
+}
+
+function goldPool(state) {
+  const row = (g) => h`<tr><td><input type="text" name="name_${g.id}" value="${g.name}" maxlength="60" placeholder="${g.id === 'new' ? '+ Add a free agent' : ''}" aria-label="Name"></td>
+    <td><select name="gender_${g.id}" aria-label="Gender">${opt('', 'Not set', !g.gender)}${opt('M', 'Man', g.gender === 'M')}${opt('F', 'Woman', g.gender === 'F')}</select></td>
+    <td>${g.id === 'new' ? '' : h`<label class="tick"><input type="checkbox" name="active_${g.id}"${g.active ? raw(' checked') : ''}><span>Active</span></label>`}</td></tr>`;
+  const callers = state.teams.filter((t) => !t.hasOwnGold).map((t) => t.name);
+  return h`<section id="gold-pool"><h2>Organizer Gold pool</h2>
+  <p class="footnote">Free agents who belong to no school. A school with no Gold Player of its own can call one with a Gold Player Ticket; the usual ticket rules apply and games count for the calling school. Schools that can call them now: ${callers.join(', ') || 'none'}.</p>
+  <form method="post" action="/admin/free-gold">
+    <div class="table-scroll"><table class="tournament-table admin-table"><thead><tr><th scope="col">Name</th><th scope="col">Plays as</th><th scope="col">Status</th></tr></thead>
+    <tbody>${[...state.freeGold, { id: 'new', name: '', gender: 'M', active: 1 }].map(row)}</tbody></table></div>
+    <p class="form-actions"><button class="button small" type="submit">Save pool</button></p>
+  </form></section>`;
 }
 
 function settingsTab(state, visibility) {
@@ -242,7 +256,7 @@ function settingsTab(state, visibility) {
 
 export function adminPage(state, user, { tab, users, origin, query, links = null, visibility = 'public' }) {
   const current = TABS.some(([k]) => k === tab) ? tab : 'setup';
-  const content = current === 'setup' ? setupTab(state) : current === 'people' ? peopleTab(state, users, origin, links) : current === 'players' ? playersTab(state, query.team) : settingsTab(state, visibility);
+  const content = current === 'setup' ? setupTab(state) : current === 'people' ? peopleTab(state, users, origin, links) : current === 'players' ? h`${playersTab(state, query.team)}${goldPool(state)}` : settingsTab(state, visibility);
   const body = h`
 <main id="main" class="page">
   <div class="tournament-hero"><div class="wrap"><p class="eyebrow">Tournament staff</p><h1 class="page-title">Admin</h1></div></div>

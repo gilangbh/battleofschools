@@ -602,3 +602,12 @@ tr.is-tied small{color:#b4291d}
 .dm-plan{margin:0 0 .5rem;font-size:.8rem;font-weight:600;color:#4d5e74}
 .am-tb{display:flex;align-items:center;justify-content:center;gap:.5rem;margin-top:.5rem;font-size:.78rem;color:#4d5e74}
 .am-tb input{width:3.6rem;min-height:36px;text-align:center;padding:.2rem}
+
+/* Lineup deadline, Champion ledger verification */
+.due-note{background:#fde9b8;border-color:#b98400;font-weight:400}
+.showdown-card .due{margin:0;font-size:.75rem;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:#7a4b00}
+.award-v{display:inline-flex;vertical-align:middle;margin:0 .35rem 0 0}
+.award-v input{width:18px;height:18px}
+.champ-table{max-width:46rem}
+.showdown-card > header .due{color:var(--lime)}
+.lineup-form .footnote{grid-column:1/-1;flex-basis:100%;width:100%;max-width:none;margin:0}

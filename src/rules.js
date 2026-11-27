@@ -124,7 +124,7 @@ export function validateLineup(ctx) {
     }
   }
   if (goldOut != null) {
-    const gold = players.find((p) => p.is_gold);
+    const gold = ctx.gold !== undefined ? ctx.gold : players.find((p) => p.is_gold);
     const out = byId.get(goldOut);
     if (isKnockout(stage)) errors.push('Golden Tickets can only be used in the group stage.');
     else {

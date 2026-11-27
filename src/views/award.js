@@ -11,7 +11,7 @@ export const AWARD_KINDS = [
 const KIND_LABEL = Object.fromEntries(AWARD_KINDS);
 const NEW_ROWS = 8;
 
-export function awardPage(state, user, { team, query, records, counts, log = [], draft = null }) {
+export function awardPage(state, user, { team, query, records, counts, standing = [], log = [], draft = null }) {
   const admin = user.role === 'admin';
   // One line per person, with their stations across.
   const people = new Map();
@@ -26,7 +26,14 @@ export function awardPage(state, user, { team, query, records, counts, log = [],
   <div class="tournament-hero"><div class="wrap"><p class="eyebrow"><a href="/desk">← Scoring desk</a> · Separate from the school standings</p><h1 class="page-title">School Yard Champion ledger</h1></div></div>
   <div class="wrap tournament-body">
     ${flash(query)}
-    <p class="lock-banner"><b>Raw results only.</b> Credited points are pending until the award policy is approved, so no school total and no winner is shown. One record per person at each station for the whole event; Satu Satu counts as one station.</p>
+    <p class="lock-banner"><b>One verified point per person per station.</b> Once for the whole event, at most five per person, no cap on a school’s total. Satu Satu is one station. A failed or zero-score attempt still counts; queueing, scanning or a gift alone does not. Unverified records stay pending.</p>
+    <section aria-labelledby="champ-h"><h2 id="champ-h">School Yard Champion standing</h2>
+      ${standing.length ? h`<div class="table-scroll"><table class="tournament-table champ-table">
+        <thead><tr><th scope="col">Position</th><th scope="col">School</th><th scope="col">Points</th><th scope="col">People</th><th scope="col">Fewest at a station</th></tr></thead>
+        <tbody>${standing.map((r) => h`<tr><td>${r.rank}${r.level ? ' =' : ''}</td><th scope="row">${state.teamById.get(r.team)?.name || r.team}</th><td><strong>${r.total}</strong></td><td>${r.people}</td><td>${r.minimum}</td></tr>`)}</tbody></table></div>`
+        : h`<p class="quiet-note">No verified participation yet.</p>`}
+      <p class="footnote">Ordered by points, then different people, then the fewest participants at any one station (higher wins). Schools marked = are still level and need a witnessed public draw. Staff only: this is not shown on any public screen.</p>
+    </section>
     <ul class="school-picker" role="list">${state.teams.map((t) => {
       const c = counts.get(t.id) || { people: 0, records: 0 };
       return h`<li><a href="/desk/award?team=${t.id}"${team && t.id === team.id ? raw(' aria-current="true"') : ''}>${teamMark(t)}<strong>${t.name}</strong><small>${c.people} people · ${c.records} records</small></a></li>`;
@@ -49,11 +56,12 @@ export function awardPage(state, user, { team, query, records, counts, log = [],
 
     <section aria-labelledby="award-list"><h2 id="award-list">${team.name}: recorded so far</h2>
       ${people.size ? h`<div class="table-scroll"><table class="tournament-table award-list">
-        <thead><tr><th scope="col">Person</th><th scope="col">Who they are</th>${AWARD_STATIONS.map((s) => h`<th scope="col">${s.name}</th>`)}<th scope="col">Credit</th></tr></thead>
+        <thead><tr><th scope="col">Person</th><th scope="col">Who they are</th>${AWARD_STATIONS.map((s) => h`<th scope="col">${s.name}</th>`)}<th scope="col">Points</th></tr></thead>
         <tbody>${[...people.values()].map((p) => h`<tr><th scope="row">${p.person}</th><td>${KIND_LABEL[p.kind] || p.kind}</td>
-          ${AWARD_STATIONS.map((s) => { const r = p.byStation.get(s.id); return h`<td>${r ? h`<span class="award-raw">${r.raw}</span>${r.ref ? h`<small>${r.ref}</small>` : ''}${admin ? h`<button class="fx-del" type="submit" form="aw-del-${r.id}" aria-label="Remove ${p.person}, ${s.name}" title="Remove this record">×</button>` : ''}` : '–'}</td>`; })}
-          <td><span class="chip">Pending</span></td></tr>`)}</tbody>
+          ${AWARD_STATIONS.map((s) => { const r = p.byStation.get(s.id); return h`<td>${r ? h`<label class="award-v" title="Verified participation"><input type="hidden" form="aw-verify" name="seen_${r.id}" value="1"><input type="checkbox" form="aw-verify" name="v_${r.id}"${r.verified ? raw(' checked') : ''} aria-label="Verified: ${p.person}, ${s.name}"></label><span class="award-raw">${r.raw}</span>${r.ref ? h`<small>${r.ref}</small>` : ''}${admin ? h`<button class="fx-del" type="submit" form="aw-del-${r.id}" aria-label="Remove ${p.person}, ${s.name}" title="Remove this record">×</button>` : ''}` : '–'}</td>`; })}
+          <td>${(() => { const all5 = [...p.byStation.values()]; const done = all5.filter((r) => r.verified).length; return h`<strong>${done}</strong>${done < all5.length ? h` <span class="chip">${all5.length - done} pending</span>` : ''}`; })()}</td></tr>`)}</tbody>
       </table></div>
+      <form method="post" action="/desk/award/${team.id}/verify" id="aw-verify"><p class="form-actions"><button class="button small" type="submit">Save verification</button> <span class="footnote">Tick each result whose participation you have checked, then save.</span></p></form>
       ${admin ? records.map((r) => h`<form method="post" action="/admin/award/${r.id}/delete" id="aw-del-${r.id}" data-confirm="Remove this record? It stays in the change list."></form>`) : ''}`
         : h`<p class="quiet-note">Nothing recorded for this school yet.</p>`}
       ${log.length ? h`<details class="tournament-round yard-log"><summary>Changes for ${team.name} <span class="round-count">${log.length}${log.length === 60 ? '+' : ''}</span></summary>

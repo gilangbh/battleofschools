@@ -95,7 +95,7 @@ function scoreAttempt(stationId, f, ctx = {}) {
   }
   if (stationId === 'accuracy') {
     const shots = ['s1', 's2', 's3', 's4', 's5'].map((k) => num(f[k]));
-    if (shots.some((n) => !(n >= 0 && n <= 1000))) return { error: 'Accuracy: enter all five shot values. A miss or a foot fault is 0.' };
+    if (shots.some((n) => ![0, 20, 30, 50].includes(n))) return { error: 'Accuracy: each of the five shots is 0, 20, 30 or 50. A miss or a foot fault is 0.' };
     const p = player();
     if (!p) return { error: 'Accuracy: choose the registered player who took the five shots.' };
     const score = Math.min(shots.reduce((a, b) => a + b, 0) / 20, 5);

@@ -89,9 +89,18 @@ export function loadState() {
     t.players = players.filter((p) => p.team_id === t.id);
     t.regulars = t.players.filter((p) => !p.is_gold);
     t.gold = t.players.find((p) => p.is_gold) || null;
+    t.hasOwnGold = allPlayers.some((p) => p.team_id === t.id && p.is_gold);
   }
 
+  const freeGold = all('SELECT * FROM free_gold ORDER BY id');
+  const freeById = new Map(freeGold.map((g) => [g.id, g]));
+  // Who a school may call with a Gold Player Ticket: its own Gold Player, or the organizer pool if it has none.
+  for (const t of teams) {
+    t.goldOptions = t.gold ? [{ ...t.gold, freeId: null }]
+      : t.hasOwnGold ? [] : freeGold.filter((g) => g.active).map((g) => ({ ...g, is_gold: 1, freeId: g.id }));
+  }
   const tickets = all('SELECT * FROM tickets ORDER BY id');
+  for (const t of tickets) t.gold = t.free_gold_id ? freeById.get(t.free_gold_id) || null : teamById.get(t.team_id)?.gold || null;
   const lineupRows = all('SELECT * FROM lineups');
   const matchRows = all('SELECT * FROM matches ORDER BY id');
   const showdowns = all('SELECT * FROM showdowns ORDER BY round, slot, id');
@@ -134,6 +143,7 @@ export function loadState() {
       player1: playerById.get(l.p1),
       player2: playerById.get(l.p2),
       goldOut: startTicket ? startTicket.player_out : null,
+      goldFreeId: startTicket ? startTicket.free_gold_id || null : null,
     };
   }
   for (const m of matchById.values()) m.revealed = Boolean(m.lineup.a && m.lineup.b);
@@ -178,7 +188,7 @@ export function loadState() {
 
   return {
     settings, courts, teams, teamById, players, allPlayers, playerById, showdowns, sdById, matchById, allMatches,
-    activityRows, finalInfo, yardByTeam, bonusByTeam, bonusInfo, yardStarted, standings, appearances, ticketsByTeam, live, recent,
+    freeGold, activityRows, finalInfo, yardByTeam, bonusByTeam, bonusInfo, yardStarted, standings, appearances, ticketsByTeam, live, recent,
     groupsSet: teams.some((t) => t.grp),
     knockout: showdowns.filter((s) => isKnockout(s.stage)),
   };

@@ -131,6 +131,13 @@ addColumn('matches', 'plan_time', 'TEXT');
 addColumn('am_matches', 'tb_a', 'INTEGER');
 addColumn('am_matches', 'tb_b', 'INTEGER');
 
+// Organizer free-agent Gold Players. They belong to no school; a school with no Gold Player of its own can call one
+// with a Gold Player Ticket, and the games count for the calling school.
+db.exec('CREATE TABLE IF NOT EXISTS free_gold (id INTEGER PRIMARY KEY, name TEXT NOT NULL, gender TEXT, photo TEXT, active INTEGER NOT NULL DEFAULT 1)');
+addColumn('tickets', 'free_gold_id', 'INTEGER');
+// A Champion ledger record counts only once someone has verified the participation.
+addColumn('award', 'verified', 'INTEGER NOT NULL DEFAULT 0');
+
 // A school's final points for one station, typed straight into the overview table. When present it is used for
 // the standings in place of the showdown-by-showdown results, which stay on record as evidence.
 db.exec(`

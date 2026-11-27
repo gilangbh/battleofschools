@@ -66,7 +66,16 @@ function goldIds() {
   for (const [id, team, reg] of GOLD_IDS) run('UPDATE players SET reg_id = ? WHERE id = ? AND team_id = ? AND is_gold = 1 AND reg_id IS NULL', reg, id, team);
 }
 
-const MIGRATIONS = [['mig_20261127_launch', () => { launchCourts(); exhibitionField(); goldIds(); }]];
+/** The two organizer free agents named in the handoff of 27 November (both confirmed as men). */
+function goldPool() {
+  if (get('SELECT COUNT(*) AS n FROM free_gold').n) return;
+  for (const name of ['Julius Liman', 'Harsya Rusmiputro']) run("INSERT INTO free_gold (name, gender, active) VALUES (?, 'M', 1)", name);
+}
+
+const MIGRATIONS = [
+  ['mig_20261127_launch', () => { launchCourts(); exhibitionField(); goldIds(); }],
+  ['mig_20261127_goldpool', goldPool],
+];
 
 export function migrate() {
   for (const [key, step] of MIGRATIONS) {
@@ -86,5 +95,5 @@ export function dataCheck() {
   console.log(`DATA CHECK knockout: ${ko.map((m) => `${m.stage}${m.stage === 'semi' ? m.slot + 1 : ''} ${m.category} ${m.t || '?'} ${m.c || '?'}`).join('; ')}`);
   console.log(`DATA CHECK school yard: showdown results ${n('SELECT COUNT(*) AS n FROM activity')}, final totals ${n('SELECT COUNT(*) AS n FROM station_final')}, starting points ${n('SELECT COUNT(*) AS n FROM bonus')}, ledger records ${n('SELECT COUNT(*) AS n FROM award')}`);
   console.log(`DATA CHECK exhibition: players ${n('SELECT COUNT(*) AS n FROM am_players')} (${all('SELECT label FROM am_players ORDER BY sort, id').map((p) => p.label || '?').join(', ')}), rounds ${n('SELECT COUNT(*) AS n FROM am_matches')}, scored ${n("SELECT COUNT(*) AS n FROM am_matches WHERE status = 'done'")}`);
-  console.log(`DATA CHECK school gold players: ${gold.map((g) => `${g.team_id} ${g.active ? 'active' : 'OFF'}`).join(', ') || 'none'}; captain logins ${n("SELECT COUNT(*) AS n FROM users WHERE role = 'captain'")}; visibility ${getSetting('visibility')}`);
+  console.log(`DATA CHECK school gold players: ${gold.map((g) => `${g.team_id} ${g.active ? 'active' : 'OFF'}`).join(', ') || 'none'}; organizer gold pool ${n('SELECT COUNT(*) AS n FROM free_gold WHERE active = 1')}; captain logins ${n("SELECT COUNT(*) AS n FROM users WHERE role = 'captain'")}; visibility ${getSetting('visibility')}`);
 }

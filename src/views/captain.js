@@ -1,6 +1,11 @@
 import { h, raw, layout, teamMark, categoryTag, pairNames, showdownTitle, scoreText, flash, LEVEL_LABEL, ICON } from './ui.js';
 import { ticketBalance, GOLD_DEPLOYMENTS, GOLDEN_POINTS, MIN_APPEARANCES, isKnockout } from '../rules.js';
 
+const minutesBefore = (hhmm, n) => {
+  const [h2, m] = hhmm.split(':').map(Number);
+  const total = (h2 * 60 + m - n + 1440) % 1440;
+  return `${String(Math.floor(total / 60)).padStart(2, '0')}:${String(total % 60).padStart(2, '0')}`;
+};
 const playerLabel = (p) => `${p.name} · ${LEVEL_LABEL[p.level]}${p.gender ? ` · ${p.gender === 'M' ? 'Man' : 'Woman'}` : ''}`;
 
 function playerSelect(name, team, selected) {
@@ -27,8 +32,9 @@ function lineupBlock(state, team, m, goldLeft, base) {
   if (m.status === 'done') {
     return h`<div class="lineup is-locked">${head}<p class="lineup-status">Finished ${scoreText(m)}. No lineup was recorded.</p></div>`;
   }
-  const canGold = !isKnockout(sd.stage) && team.gold && (goldLeft > 0 || (mine && mine.goldOut));
-  const goldSel = mine && mine.goldOut ? (mine.goldOut === mine.p1 ? 'p1' : 'p2') : '';
+  const canGold = !isKnockout(sd.stage) && team.goldOptions.length > 0 && (goldLeft > 0 || (mine && mine.goldOut));
+  const goldValue = (slot, g) => (g.freeId ? `${slot}:${g.freeId}` : slot);
+  const goldSel = mine && mine.goldOut ? goldValue(mine.goldOut === mine.p1 ? 'p1' : 'p2', { freeId: mine.goldFreeId }) : '';
   return h`<div class="lineup ${mine ? 'is-waiting' : 'is-open'}">${head}
     ${mine ? h`<p class="lineup-status"><strong>Submitted.</strong> Hidden until ${opp ? opp.name : 'your opponent'} submits.</p>` : ''}
     <form method="post" action="${base}/lineup/${m.id}" class="lineup-form">
@@ -36,8 +42,7 @@ function lineupBlock(state, team, m, goldLeft, base) {
       ${playerSelect('p2', team, mine?.p2)}
       ${canGold ? h`<select name="gold" aria-label="Gold Player Ticket">
         <option value="">No Gold Player Ticket</option>
-        <option value="p1"${goldSel === 'p1' ? raw(' selected') : ''}>${team.gold.name} ★ starts instead of first player</option>
-        <option value="p2"${goldSel === 'p2' ? raw(' selected') : ''}>${team.gold.name} ★ starts instead of second player</option>
+        ${team.goldOptions.map((g) => ['p1', 'p2'].map((slot) => h`<option value="${goldValue(slot, g)}"${goldSel === goldValue(slot, g) ? raw(' selected') : ''}>${g.name} ★ starts instead of ${slot === 'p1' ? 'first' : 'second'} player</option>`))}
       </select>` : ''}
       <button class="button small" type="submit">${mine ? 'Update' : 'Submit'}</button>
       ${canGold ? h`<span class="footnote">The Gold Player may only replace the highest-rated player of the pair, and must be the same gender.</span>` : ''}
@@ -61,7 +66,7 @@ export function captainPage(state, user, team, query) {
   const card = (sd) => {
     const opp = sd.team_a === team.id ? sd.b : sd.a;
     return h`<article class="showdown-card">
-      <header><h3>${showdownTitle(sd)} <span>v</span> ${opp ? h`${teamMark(opp)} ${opp.name}` : 'To be decided'}</h3><p class="fixture-meta">${[sd.start_time, sd.courtText].filter(Boolean).join(' · ')}</p></header>
+      <header><h3>${showdownTitle(sd)} <span>v</span> ${opp ? h`${teamMark(opp)} ${opp.name}` : 'To be decided'}</h3>${sd.stage === 'group' && sd.start_time ? h`<p class="due">Lineups due ${minutesBefore(sd.start_time, 15)}</p>` : ''}<p class="fixture-meta">${[sd.start_time, sd.courtText].filter(Boolean).join(' · ')}</p></header>
       <div class="lineup-grid">${sd.matches.map((m) => lineupBlock(state, team, m, bal.goldLeft, base))}</div>
     </article>`;
   };
@@ -81,7 +86,9 @@ export function captainPage(state, user, team, query) {
 
     <section aria-labelledby="lineups-h">
       <h2 id="lineups-h">Lineups</h2>
-      <p class="footnote">Your pair stays hidden until the other captain submits theirs. Then both are shown and locked.</p>
+      <p class="flash due-note"><b>All three pairs are due 15 minutes before your showdown starts.</b> The committee enforces this; the app does not close lineups on the clock.</p>
+      <p class="footnote">Your pair stays hidden until the other captain submits theirs. As soon as both are in for a category, both are shown and locked, even if that is early.</p>
+      ${!team.hasOwnGold && team.goldOptions.length ? h`<p class="footnote">Your school has no Gold Player of its own, so a Gold Player Ticket can call an organizer Gold: ${team.goldOptions.map((g) => g.name).join(' or ')}. The same ticket rules apply and the games count for your school.</p>` : ''}
       ${mine.length ? '' : h`<p class="quiet-note">Your matchups appear here after the live draw on 25 November.</p>`}
       ${upcoming.map(card)}
       ${finished.length ? h`<details class="tournament-round finished-rounds"><summary>Finished showdowns <span class="round-count">${finished.length}</span></summary>${finished.map(card)}</details>` : ''}

@@ -15,7 +15,7 @@ const loc = (res) => decodeURIComponent(res.headers.get('location') || '');
 const pageOf = async (url) => (await fetch(base + url, { headers: { Cookie: 'bos_sid=testdesk' } })).text();
 
 await post('/admin/reset', { confirm: 'RESET', lineups: 'on', yard: 'on' }, 'testadmin');
-db.exec('DELETE FROM award; DELETE FROM award_log; DELETE FROM am_matches; DELETE FROM am_players;');
+db.exec('DELETE FROM award; DELETE FROM award_log; DELETE FROM am_matches; DELETE FROM am_players; DELETE FROM free_gold;');
 const team = db.prepare('SELECT id FROM teams ORDER BY sort LIMIT 1').get().id;
 const other = db.prepare('SELECT id FROM teams ORDER BY sort LIMIT 1 OFFSET 1').get().id;
 const player = db.prepare('SELECT id FROM players WHERE team_id = ? AND active = 1 AND is_gold = 0 LIMIT 1').get(team).id;
@@ -66,16 +66,24 @@ ok((await pageOf('/partial/public')).includes('3.5'), 'the starting points show 
 // --- School Yard Champion ledger ---
 res = await post(`/desk/award/${team}`, { p_0: 'Ani Wijaya', id_0: '', k_0: 'spectator', r_0_pin: '3', r_0_accuracy: '70', ref_0: 'A4-1 row 1', p_1: 'Gold Person', k_1: 'gold', r_1_accuracy: '90' });
 ok(res.status === 303 && db.prepare('SELECT COUNT(*) n FROM award').get().n === 3, 'three raw records saved');
-ok(db.prepare('SELECT COUNT(*) n FROM award WHERE credit IS NOT NULL').get().n === 0, 'credit stays empty, which means pending');
+ok(db.prepare('SELECT COUNT(*) n FROM award WHERE credit IS NOT NULL').get().n === 0, 'nothing is credited until verified');
 ok(db.prepare("SELECT kind FROM award WHERE person = 'Gold Person'").get().kind === 'gold', 'a Gold Player keeps their true classification in the award ledger');
 res = await post(`/desk/award/${other}`, { p_0: 'ani  wijaya', k_0: 'spectator', r_0_pin: '5' });
 ok(res.status === 422 && db.prepare('SELECT COUNT(*) n FROM award').get().n === 3, 'the same person cannot get a second Pin record, even under another school');
-res = await post(`/desk/award/${other}`, { p_0: 'Ani Wijaya', k_0: 'spectator', r_0_satu: '2.5 + 20' });
+res = await post(`/desk/award/${team}`, { p_0: 'Ani Wijaya', k_0: 'spectator', r_0_satu: '2.5 + 20' });
 ok(res.status === 303, 'the same person may still be recorded at a station they have not done');
 res = await post(`/desk/award/${team}`, { p_0: 'Budi', k_0: 'spectator', r_0_on: '7' }, 'testcap');
 ok(res.status === 403, 'a captain cannot write to the ledger');
 page = await pageOf(`/desk/award?team=${team}`);
-ok(page.includes('>Pending<'), 'the page shows the credit as pending');
+ok(page.includes('pending') && page.includes('No verified participation yet'), 'the page shows records as pending with no standing');
+const recs = db.prepare('SELECT id FROM award WHERE team_id = ? ORDER BY id').all(team);
+res = await post(`/desk/award/${team}/verify`, Object.fromEntries(recs.flatMap((r) => [[`seen_${r.id}`, '1'], [`v_${r.id}`, 'on']])));
+ok(res.status === 303 && db.prepare('SELECT COUNT(*) n FROM award WHERE verified = 1 AND credit = 1').get().n === recs.length, 'verifying gives one point per person and station');
+page = await pageOf(`/desk/award?team=${team}`);
+ok(page.includes(`<strong>${recs.length}</strong>`) && page.includes('witnessed public draw'), 'the standing shows the school total and the tie rule');
+ok(!(await pageOf('/partial/public')).includes('Champion'), 'the standing is not public');
+res = await post(`/desk/award/${other}`, { p_0: 'Ani Wijaya', k_0: 'spectator', r_0_on: '3' });
+ok(res.status === 422, 'a person recorded for one school cannot be entered under another');
 const pub = await pageOf('/partial/public');
 ok(!pub.includes('Ani Wijaya') && !pub.includes('Gold Person'), 'ledger names never reach the public page');
 ok(db.prepare('SELECT COUNT(*) n FROM activity WHERE team_id = ?').get(team).n === 4, 'the award ledger adds nothing to the official results');
@@ -144,6 +152,7 @@ ok(db.prepare('SELECT COUNT(*) n FROM players').get().n === rosterBefore && db.p
 const sd = db.prepare("SELECT * FROM showdowns WHERE stage = 'group' ORDER BY round, slot LIMIT 1").get();
 const cats = () => db.prepare("SELECT * FROM matches WHERE showdown_id = ? ORDER BY CASE category WHEN 'men' THEN 0 WHEN 'women' THEN 1 ELSE 2 END").all(sd.id);
 const women = cats()[1];
+const moved = sd.court === 'Court 6' ? 'Court 4' : 'Court 6';
 const otherCourt = sd.court === 'Court 2' ? 'Court 5' : 'Court 2';
 const sdFields = { [`team_a_${sd.id}`]: sd.team_a, [`team_b_${sd.id}`]: sd.team_b, [`time_${sd.id}`]: sd.start_time || '09:05', [`court_${sd.id}`]: sd.court || 'Court 1' };
 await post(`/desk/match/${women.id}/court`, { court: otherCourt, go: 'save' });
@@ -152,15 +161,34 @@ await post('/admin/reset', { confirm: 'RESET', lineups: 'on', yard: 'on' }, 'tes
 db.prepare('UPDATE showdowns SET team_a = ?, team_b = ? WHERE id = ?').run(sd.team_a, sd.team_b, sd.id);
 ok(cats().every((m) => m.court === null), 'reset drops every court the desk had set');
 db.prepare('UPDATE matches SET court = ? WHERE id = ?').run(otherCourt, women.id);
-await post('/admin/showdowns', { ...sdFields, [`court_${sd.id}`]: 'Court 6' }, 'testadmin');
+await post('/admin/showdowns', { ...sdFields, [`court_${sd.id}`]: moved }, 'testadmin');
 ok(cats().every((m) => m.court === null), 'changing the showdown court drops stale category courts');
-await post('/admin/showdowns', { ...sdFields, [`court_${sd.id}`]: 'Court 6', [`mt_${women.id}`]: '15:45', [`mc_${women.id}`]: 'Court 2' }, 'testadmin');
+await post('/admin/showdowns', { ...sdFields, [`court_${sd.id}`]: moved, [`mt_${women.id}`]: '15:45', [`mc_${women.id}`]: 'Court 2' }, 'testadmin');
 ok(cats()[1].plan_time === '15:45' && cats()[1].plan_court === 'Court 2' && cats()[0].plan_court === null, 'an admin can set one category its own court and time');
 let desk = await pageOf(`/desk/showdown/${sd.id}`);
-ok(desk.includes('Scheduled 15:45 · Court 2') && desk.includes('Court 6'), 'the desk shows each category its own schedule');
+ok(desk.includes('Scheduled 15:45 · Court 2') && desk.includes(moved), 'the desk shows each category its own schedule');
 await post('/admin/reset', { confirm: 'RESET', lineups: 'on', yard: 'on' }, 'testadmin');
 ok(cats()[1].plan_court === 'Court 2', 'reset keeps the planned category courts');
 db.prepare('UPDATE matches SET plan_court = NULL, plan_time = NULL WHERE showdown_id = ?').run(sd.id);
+
+// --- Organizer Gold pool and lineup deadline ---
+db.prepare("UPDATE settings SET value = 'captains' WHERE key = 'visibility'").run();
+db.prepare('UPDATE players SET is_gold = 0, active = 0 WHERE is_gold = 1 AND team_id = ?').run('acs');
+await post('/admin/free-gold', { name_new: 'Pool Player', gender_new: 'M' }, 'testadmin');
+const poolId = db.prepare("SELECT id FROM free_gold WHERE name = 'Pool Player'").get().id;
+const gsd = db.prepare("SELECT * FROM showdowns WHERE stage = 'group' ORDER BY round, slot LIMIT 1").get();
+db.prepare("UPDATE showdowns SET team_a = 'acs', team_b = 'jis', start_time = '09:05' WHERE id = ?").run(gsd.id);
+const menMatch = db.prepare("SELECT id FROM matches WHERE showdown_id = ? AND category = 'men'").get(gsd.id).id;
+const male = db.prepare("SELECT id, level FROM players WHERE team_id = 'acs' AND active = 1 AND is_gold = 0 AND gender = 'M' AND level_pending = 0 ORDER BY CASE level WHEN 'silver' THEN 3 WHEN 'bronze' THEN 2 ELSE 1 END DESC, id").all();
+let capPage = await (await fetch(`${base}/captain`, { headers: { Cookie: 'bos_sid=testcap' } })).text();
+ok(capPage.includes('Pool Player ★') && capPage.includes('Lineups due 08:50') && capPage.includes('does not close lineups on the clock'), 'a school without its own Gold sees the pool and the 08:50 deadline');
+res = await post(`/captain/lineup/${menMatch}`, { p1: String(male[0].id), p2: String(male[male.length - 1].id), gold: `p1:${poolId}` }, 'testcap');
+const tk = db.prepare('SELECT * FROM tickets WHERE match_id = ?').get(menMatch);
+ok(!/err=/.test(loc(res)) && tk && tk.free_gold_id === poolId && tk.team_id === 'acs' && tk.player_out === male[0].id, 'a pool Gold can be called with a ticket, replacing the highest-rated man');
+db.prepare("UPDATE players SET is_gold = 1, active = 1 WHERE id = (SELECT id FROM players WHERE team_id = 'jis' AND is_gold = 1 LIMIT 1)").run();
+const jisPage = await (await fetch(`${base}/captain`, { headers: { Cookie: 'bos_sid=testcapjis' } })).text();
+ok(!jisPage.includes('Pool Player'), 'a school with its own Gold Player is not offered the pool');
+db.exec('DELETE FROM tickets; DELETE FROM lineups;');
 
 // --- Captain privacy and locking ---
 db.prepare("UPDATE settings SET value = 'captains' WHERE key = 'visibility'").run();

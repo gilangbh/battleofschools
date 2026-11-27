@@ -34,8 +34,10 @@ test('Satu Satu: half a point per Hopscotch achievement plus bowl points over 40
 });
 
 test('Accuracy: each attempt is capped at 5 before the five are averaged', () => {
-  const shots = (total) => ({ s1: String(total), s2: '0', s3: '0', s4: '0', s5: '0', player: '7' });
-  const scores = [50, 70, 100, 120, 0].map((t) => readAttempt('accuracy', shots(t), ctx).score);
+  const shots = (list) => ({ ...Object.fromEntries(list.map((v, i) => [`s${i + 1}`, String(v)])), player: '7' });
+  // Totals of 50, 70, 100, 120 and 0 made from the printed values.
+  const scores = [[50, 0, 0, 0, 0], [50, 20, 0, 0, 0], [50, 50, 0, 0, 0], [50, 50, 20, 0, 0], [0, 0, 0, 0, 0]].map((t) => readAttempt('accuracy', shots(t), ctx).score);
+  assert.ok(readAttempt('accuracy', shots([10, 0, 0, 0, 0]), ctx).error, 'only 0, 20, 30 and 50 are on the board');
   assert.deepEqual(scores, [2.5, 3.5, 5, 5, 0]);
   near(summarize(rows('accuracy', scores)).stations.accuracy.points, 3.2);
   assert.ok(readAttempt('accuracy', { s1: '20', s2: '30', s3: '', s4: '0', s5: '0', player: '7' }, ctx).error, 'a missing shot is not a miss');
@@ -96,7 +98,7 @@ test('scores match the organizer\'s reference module', { skip: !fs.existsSync(re
     const theirs = ref.scoreSatuComponents({ hopscotchAchievements: [0, 1, 2, 3, 4].map((i) => i < hop), blindScoopRawPoints: bowl, hopscotchTimerLimitSeconds: 45, blindScoopTimerLimitSeconds: 20 });
     assert.equal(mine, theirs);
   }
-  for (const shots of [[20, 30, 50, 0, 20], [50, 50, 50, 50, 50], [0, 0, 0, 0, 0], [10, 0, 0, 0, 5]]) {
+  for (const shots of [[20, 30, 50, 0, 20], [50, 50, 50, 50, 50], [0, 0, 0, 0, 0], [30, 0, 0, 0, 20]]) {
     const f = Object.fromEntries(shots.map((v, i) => [`s${i + 1}`, String(v)]));
     assert.equal(readAttempt('accuracy', { ...f, player: '7' }, ctx).score, ref.scoreAccuracy(shots));
   }
@@ -120,7 +122,7 @@ test('scores match the organizer\'s reference module', { skip: !fs.existsSync(re
   [[2, 24], [5, 40], [0, 0], [3, 17], [4, 55]].forEach(([hop, bowl], i) => put('satu', i + 1, [spectator(`h${i}`, 'hopscotch'), spectator(`s${i}`, 'blind_scoop')],
     { components: { hopscotchAchievements: [0, 1, 2, 3, 4].map((k) => k < hop), blindScoopRawPoints: bowl, hopscotchTimerLimitSeconds: 45, blindScoopTimerLimitSeconds: 20 } },
     readAttempt('satu', { hop: String(hop), bowl: String(bowl), hopper: 'A', scooper: 'B' }, ctx).score));
-  [[20, 30, 50, 0, 20], [50, 50, 50, 50, 50], [0, 0, 0, 0, 0], [10, 0, 0, 0, 5], [30, 30, 0, 0, 0]].forEach((shots, i) => put('accuracy', i + 1, [player('p1')], { shotPoints: shots }, Math.min(shots.reduce((a, b) => a + b, 0) / 20, 5)));
+  [[20, 30, 50, 0, 20], [50, 50, 50, 50, 50], [0, 0, 0, 0, 0], [20, 0, 0, 0, 0], [30, 30, 0, 0, 0]].forEach((shots, i) => put('accuracy', i + 1, [player('p1')], { shotPoints: shots }, Math.min(shots.reduce((a, b) => a + b, 0) / 20, 5)));
   put('on', 0, [spectator('run1')], { timerLimitSeconds: 60, completed20mLengths: 7 }, 3.5);
   [1, 1, 0, 1, 1].forEach((v, i) => put('red_bull', i + 1, [player('p1'), ...[1, 2, 3].map((k) => spectator(`rb${i}${k}`))],
     v ? { timerLimitSeconds: 30, successfulFlips: 4, finalFlipSeconds: 25 } : { timerLimitSeconds: 30, successfulFlips: 3, finalFlipSeconds: null, deadlineObserved: true }, v));

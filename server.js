@@ -199,7 +199,9 @@ function saveLineup(state, m, team, body, userId, { byDesk = false } = {}) {
   }
   const p1 = intOrNull(body.p1);
   const p2 = intOrNull(body.p2);
-  const goldOut = body.gold === 'p1' ? p1 : body.gold === 'p2' ? p2 : null;
+  const [slot, pool] = String(body.gold || '').split(':');
+  const goldOut = slot === 'p1' ? p1 : slot === 'p2' ? p2 : null;
+  const goldPick = goldOut == null ? null : team.goldOptions.find((g) => String(g.freeId || '') === String(pool || '')) || null;
   const teamTickets = state.ticketsByTeam.get(team.id) || [];
   const isOwnStart = (t) => t.match_id === m.id && t.type === 'gold_player' && t.timing === 'start';
   const errors = validateLineup({
@@ -207,6 +209,7 @@ function saveLineup(state, m, team, body, userId, { byDesk = false } = {}) {
     category: m.category,
     players: team.players,
     p1, p2, goldOut,
+    gold: goldPick,
     otherLineups: sd.matches.filter((x) => x.id !== m.id && x.lineup[side]).map((x) => ({ category: x.category, p1: x.lineup[side].p1, p2: x.lineup[side].p2 })),
     goldUsedElsewhere: teamTickets.filter((t) => t.type === 'gold_player' && !isOwnStart(t)).length,
     goldenPointHere: m.tickets.some((t) => t.team_id === team.id && t.type === 'golden_point'),
@@ -216,7 +219,7 @@ function saveLineup(state, m, team, body, userId, { byDesk = false } = {}) {
     const kept = m.tickets.find((t) => t.team_id === team.id && t.type === 'gold_player' && (t.player_out === p1 || t.player_out === p2));
     if (kept) {
       const byId = new Map(team.players.map((p) => [p.id, p]));
-      const why = goldReplaceError(team.gold, byId.get(p1), byId.get(p2), byId.get(kept.player_out));
+      const why = goldReplaceError(kept.gold, byId.get(p1), byId.get(p2), byId.get(kept.player_out));
       if (why) return [`This pair no longer fits the Gold Player ticket recorded for this match. ${why} Remove the ticket first if the pair really changed.`];
     }
   }
@@ -232,7 +235,7 @@ function saveLineup(state, m, team, body, userId, { byDesk = false } = {}) {
     } else {
       run("DELETE FROM tickets WHERE match_id = ? AND team_id = ? AND type = 'gold_player' AND timing = 'start'", m.id, team.id);
       if (goldOut != null) {
-        run("INSERT INTO tickets (team_id, match_id, type, player_out, timing, created_at) VALUES (?, ?, 'gold_player', ?, 'start', ?)", team.id, m.id, goldOut, Date.now());
+        run("INSERT INTO tickets (team_id, match_id, type, player_out, timing, free_gold_id, created_at) VALUES (?, ?, 'gold_player', ?, 'start', ?, ?)", team.id, m.id, goldOut, goldPick.freeId, Date.now());
       }
     }
   });
@@ -405,18 +408,20 @@ app.post('/desk/match/:id/ticket', requireRole('desk'), (req, res) => {
   }
   if (!use.startsWith('out:')) return deskBack(res, ctx, 'err', 'Choose Golden Point or the player the Gold Player replaces.');
   if (bal.goldLeft <= 0) return deskBack(res, ctx, 'err', `${team.name} has already used its ${GOLD_DEPLOYMENTS} Gold Player deployments.`);
-  if (!team.gold) return deskBack(res, ctx, 'err', `${team.name} has no approved Gold Player on its roster.`);
   if (here.some((t) => t.type === 'golden_point')) return deskBack(res, ctx, 'err', `${team.name} used a Golden Point in this match. The two tickets cannot be combined in one match.`);
-  const out = Number(use.slice(4));
+  const [, outId, poolId] = use.split(':');
+  const gold = team.goldOptions.find((g) => String(g.freeId || '') === String(poolId || ''));
+  if (!gold) return deskBack(res, ctx, 'err', `${team.name} has no approved Gold Player it can call.`);
+  const out = Number(outId);
   const timing = req.body.timing === 'after_g2' ? 'after_g2' : 'start';
   const side = m.sd.team_a === team.id ? 'a' : 'b';
   const l = m.lineup[side];
   if (!l) return deskBack(res, ctx, 'err', `Enter ${team.name}’s lineup before recording a Gold Player.`);
   if (out !== l.p1 && out !== l.p2) return deskBack(res, ctx, 'err', `Choose which ${team.name} player the Gold Player replaced.`);
   if (m.tickets.some((t) => t.team_id === team.id && t.type === 'gold_player')) return deskBack(res, ctx, 'err', `${team.name} already has a Gold Player in this match.`);
-  const why = goldReplaceError(team.gold, l.player1, l.player2, state.playerById.get(out));
+  const why = goldReplaceError(gold, l.player1, l.player2, state.playerById.get(out));
   if (why) return deskBack(res, ctx, 'err', why);
-  run("INSERT INTO tickets (team_id, match_id, type, player_out, timing, created_at) VALUES (?, ?, 'gold_player', ?, ?, ?)", team.id, m.id, out, timing, Date.now());
+  run("INSERT INTO tickets (team_id, match_id, type, player_out, timing, free_gold_id, created_at) VALUES (?, ?, 'gold_player', ?, ?, ?, ?)", team.id, m.id, out, timing, gold.freeId, Date.now());
   deskBack(res, ctx, 'msg', `Gold Player recorded for ${team.name}.`);
 });
 
@@ -565,11 +570,29 @@ app.post('/desk/activity/:team', requireRole('desk'), (req, res) => {
 
 // ---------- School Yard Champion ledger ----------
 const awardKey = (name, id) => (id ? `id:${id.toLowerCase().replace(/\s+/g, '')}` : `name:${personKey(name)}`);
+// Order approved by the committee: total, then distinct people, then the higher minimum participant count across
+// all five stations (zeros included). Anything still level goes to a witnessed public draw, which is not done here.
+function championStanding(verified) {
+  const teams = new Map();
+  for (const r of verified) {
+    const t = teams.get(r.team_id) || { team: r.team_id, total: 0, people: new Set(), stations: Object.fromEntries(AWARD_STATIONS.map((s) => [s.id, 0])) };
+    t.total += 1;
+    t.people.add(r.person_key);
+    t.stations[r.station] += 1;
+    teams.set(r.team_id, t);
+  }
+  const list = [...teams.values()].map((t) => ({ team: t.team, total: t.total, people: t.people.size, minimum: Math.min(...Object.values(t.stations)) }));
+  const cmp = (x, y) => y.total - x.total || y.people - x.people || y.minimum - x.minimum;
+  list.sort(cmp);
+  for (const r of list) { r.rank = 1 + list.filter((o) => cmp(o, r) < 0).length; r.level = list.some((o) => o !== r && cmp(o, r) === 0); }
+  return list;
+}
 function awardContext(teamId) {
   const counts = new Map();
   for (const r of all('SELECT team_id, COUNT(DISTINCT person_key) AS people, COUNT(*) AS records FROM award GROUP BY team_id')) counts.set(r.team_id, r);
   return {
     counts,
+    standing: championStanding(all('SELECT * FROM award WHERE verified = 1')),
     records: teamId ? all('SELECT * FROM award WHERE team_id = ? ORDER BY person, id', teamId) : [],
     log: teamId ? all('SELECT * FROM award_log WHERE team_id = ? ORDER BY id DESC LIMIT 60', teamId) : [],
   };
@@ -603,6 +626,9 @@ app.post('/desk/award/:team', requireRole('desk'), (req, res) => {
     const key = awardKey(person, id);
     for (const [st, rawResult] of results) {
       const dup = `${key}|${st.id}`;
+      // A person counts for one school only.
+      const elsewhere = get('SELECT t.name AS team_name FROM award a JOIN teams t ON t.id = a.team_id WHERE a.person_key = ? AND a.team_id != ?', key, team.id);
+      if (elsewhere) { errors.push(`${person} is already recorded under ${elsewhere.team_name}. A person plays for one school.`); continue; }
       const had = get('SELECT a.*, t.name AS team_name FROM award a JOIN teams t ON t.id = a.team_id WHERE a.person_key = ? AND a.station = ?', key, st.id);
       if (had) errors.push(`${person} already has a ${st.name} record (${had.raw}, entered under ${had.team_name}). A person is credited once per station.`);
       else if (seen.has(dup)) errors.push(`${person} appears twice for ${st.name} on this page.`);
@@ -621,7 +647,27 @@ app.post('/desk/award/:team', requireRole('desk'), (req, res) => {
       run('INSERT INTO award_log (action, team_id, person, station, raw, by_email, at) VALUES (?, ?, ?, ?, ?, ?, ?)', 'Recorded', team.id, a.person, a.st.id, a.rawResult, req.user.email, now);
     }
   });
-  back(res, `/desk/award?team=${team.id}`, 'msg', adds.length ? `Saved ${adds.length} record${adds.length === 1 ? '' : 's'} for ${team.name}. Credit stays pending.` : 'Nothing was typed in.');
+  back(res, `/desk/award?team=${team.id}`, 'msg', adds.length ? `Saved ${adds.length} record${adds.length === 1 ? '' : 's'} for ${team.name}. Tick “Verified” below to give the credit.` : 'Nothing was typed in.');
+});
+
+// One point per person per station, given once the participation has been checked.
+app.post('/desk/award/:team/verify', requireRole('desk'), (req, res) => {
+  const rows = all('SELECT * FROM award WHERE team_id = ?', String(req.params.team));
+  const changes = [];
+  for (const r of rows) {
+    if (req.body[`seen_${r.id}`] === undefined) continue;
+    const want = req.body[`v_${r.id}`] ? 1 : 0;
+    if (want !== r.verified) changes.push({ r, want });
+  }
+  if (changes.some((c) => c.want && c.r.kind === 'unverified')) return back(res, `/desk/award?team=${req.params.team}`, 'err', 'A person marked “Not verified yet” cannot be given credit. Remove the record and enter it again with who they are. Nothing was saved.');
+  const now = Date.now();
+  tx(() => {
+    for (const { r, want } of changes) {
+      run('UPDATE award SET verified = ?, credit = ? WHERE id = ?', want, want ? 1 : null, r.id);
+      run('INSERT INTO award_log (action, team_id, person, station, raw, by_email, at) VALUES (?, ?, ?, ?, ?, ?, ?)', want ? 'Verified' : 'Unverified', r.team_id, r.person, r.station, r.raw, req.user.email, now);
+    }
+  });
+  back(res, `/desk/award?team=${req.params.team}`, 'msg', changes.length ? `Updated ${changes.length} record${changes.length === 1 ? '' : 's'}.` : 'Nothing had changed.');
 });
 
 app.post('/admin/award/:id/delete', requireRole('admin'), (req, res) => {
@@ -863,7 +909,7 @@ app.post('/admin/security/revoke', admin, (req, res) => {
 app.get('/admin/export.json', admin, (req, res) => {
   noStore(res);
   res.set('Content-Disposition', `attachment; filename="bos-scores-${new Date().toISOString().slice(0, 16).replace(/[:T]/g, '-')}.json"`);
-  const tables = ['settings', 'teams', 'players', 'showdowns', 'matches', 'lineups', 'tickets', 'activity', 'station_final', 'activity_log', 'bonus', 'award', 'award_log', 'am_players', 'am_matches'];
+  const tables = ['settings', 'teams', 'players', 'showdowns', 'matches', 'lineups', 'tickets', 'free_gold', 'activity', 'station_final', 'activity_log', 'bonus', 'award', 'award_log', 'am_players', 'am_matches'];
   res.json({ exported_at: new Date().toISOString(), ...Object.fromEntries(tables.map((t) => [t, all(`SELECT * FROM ${t}`)])) });
 });
 
@@ -879,6 +925,20 @@ app.post('/admin/users/:id/delete', admin, (req, res) => {
   if (id === req.user.id) return back(res, '/admin?tab=people', 'err', 'You cannot remove your own login.');
   run('DELETE FROM users WHERE id = ?', id);
   back(res, '/admin?tab=people', 'msg', 'Login removed.');
+});
+
+// The organizer's free-agent Gold pool.
+app.post('/admin/free-gold', admin, (req, res) => {
+  const read = (id) => ({ name: String(req.body[`name_${id}`] || '').trim().slice(0, 60), gender: ['M', 'F'].includes(req.body[`gender_${id}`]) ? req.body[`gender_${id}`] : null, active: req.body[`active_${id}`] ? 1 : 0 });
+  tx(() => {
+    for (const g of all('SELECT * FROM free_gold')) {
+      const v = read(g.id);
+      if (v.name) run('UPDATE free_gold SET name = ?, gender = ?, active = ? WHERE id = ?', v.name, v.gender, v.active, g.id);
+    }
+    const n = read('new');
+    if (n.name) run('INSERT INTO free_gold (name, gender, active) VALUES (?, ?, 1)', n.name, n.gender);
+  });
+  back(res, '/admin?tab=players#gold-pool', 'msg', 'Organizer Gold pool saved.');
 });
 
 app.post('/admin/players/:team', admin, (req, res) => {
