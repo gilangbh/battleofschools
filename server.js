@@ -25,6 +25,7 @@ import { awardPage, AWARD_STATIONS, AWARD_KINDS } from './src/views/award.js';
 import { loginEmail } from './src/email.js';
 import { americanoPage, americanoPartial, americanoTvPage } from './src/views/americano.js';
 import { schedule as amSchedule, validateScore as amValidate } from './src/americano.js';
+import { migrate, dataCheck } from './src/migrate.js';
 import { adminPage } from './src/views/admin.js';
 
 const PORT = Number(process.env.PORT) || 3000;
@@ -327,10 +328,10 @@ app.post('/desk/match/:id/court', requireRole('desk'), (req, res) => {
     return deskBack(res, ctx, 'msg', `On court${court ? ` at ${court}` : ''}. It now shows on the scoreboards.`);
   }
   if (go === 'scheduled' && m.status === 'live') {
-    run("UPDATE matches SET court = ?, status = 'scheduled', started_at = NULL WHERE id = ?", court, m.id);
+    run("UPDATE matches SET court = NULL, status = 'scheduled', started_at = NULL WHERE id = ?", m.id);
     return deskBack(res, ctx, 'msg', 'Taken off court.');
   }
-  run('UPDATE matches SET court = ? WHERE id = ?', court, m.id);
+  run('UPDATE matches SET court = ? WHERE id = ?', m.status === 'scheduled' && court === (m.plan_court || m.sd.court) ? null : court, m.id);
   deskBack(res, ctx, 'msg', 'Court saved.');
 });
 
@@ -639,29 +640,34 @@ app.get('/desk/americano', requireRole('desk'), (req, res) => { noStore(res); re
 app.post('/desk/americano/scores', requireRole('desk'), (req, res) => {
   const am = loadAmericano();
   const changes = [];
+  const count = (v) => (v === '' ? null : /^\d+$/.test(v) ? Number(v) : NaN);
   for (const m of am.matches) {
     if (req.body[`a_${m.id}`] === undefined) continue;
-    const ra = String(req.body[`a_${m.id}`] ?? '').trim();
-    const rb = String(req.body[`b_${m.id}`] ?? '').trim();
-    if (ra === '' && rb === '') { if (m.status === 'done') changes.push({ m, a: null, b: null }); continue; }
-    const a = /^\d+$/.test(ra) ? Number(ra) : NaN;
-    const b = /^\d+$/.test(rb) ? Number(rb) : NaN;
-    const err = amValidate(a, b);
+    const [ra, rb, rta, rtb] = ['a', 'b', 'ta', 'tb'].map((k) => String(req.body[`${k}_${m.id}`] ?? '').trim());
+    if (ra === '' && rb === '' && rta === '' && rtb === '') { if (m.status === 'done') changes.push({ m, a: null, b: null, ta: null, tb: null }); continue; }
+    const [a, b, ta, tb] = [ra, rb, rta, rtb].map(count);
+    const err = amValidate(a, b, ta, tb);
     if (err) return back(res, '/desk/americano', 'err', `Round ${m.round}: ${err} Nothing was saved.`);
-    if (m.score_a !== a || m.score_b !== b) changes.push({ m, a, b });
+    if (m.score_a !== a || m.score_b !== b || m.tb_a !== ta || m.tb_b !== tb) changes.push({ m, a, b, ta, tb });
   }
   const now = Date.now();
-  tx(() => { for (const c of changes) run('UPDATE am_matches SET score_a = ?, score_b = ?, status = ?, updated_at = ? WHERE id = ?', c.a, c.b, c.a === null ? 'scheduled' : 'done', now, c.m.id); });
-  back(res, '/desk/americano', 'msg', changes.length ? `Saved ${changes.length} match${changes.length === 1 ? '' : 'es'}.` : 'Nothing had changed.');
+  tx(() => { for (const c of changes) run('UPDATE am_matches SET score_a = ?, score_b = ?, tb_a = ?, tb_b = ?, status = ?, updated_at = ? WHERE id = ?', c.a, c.b, c.ta, c.tb, c.a === null ? 'scheduled' : 'done', now, c.m.id); });
+  back(res, '/desk/americano', 'msg', changes.length ? `Saved ${changes.length} round${changes.length === 1 ? '' : 's'}.` : 'Nothing had changed.');
 });
 
+// Players can be swapped freely until a round has a score; removing someone who is in the rounds clears them.
 app.post('/admin/americano/players', requireRole('admin'), (req, res) => {
   const teams = new Set(all('SELECT id FROM teams').map((t) => t.id));
-  const inRounds = new Set(all('SELECT a1, a2, b1, b2, bye FROM am_matches').flatMap((m) => [m.a1, m.a2, m.b1, m.b2, m.bye]));
+  const matches = all('SELECT * FROM am_matches');
+  const inRounds = new Set(matches.flatMap((m) => [m.a1, m.a2, m.b1, m.b2]));
+  const scored = matches.some((m) => m.status === 'done');
   const read = (id) => ({ name: String(req.body[`name_${id}`] || '').trim().slice(0, 60), label: String(req.body[`label_${id}`] || '').trim().slice(0, 40) || null, team: teams.has(req.body[`team_${id}`]) ? req.body[`team_${id}`] : null });
   const players = all('SELECT * FROM am_players');
-  for (const p of players) if (req.body[`del_${p.id}`] && inRounds.has(p.id)) return back(res, '/desk/americano', 'err', `${p.name} is in the rounds. Create the rounds again without them first, or just rename this player. Nothing was saved.`);
+  const leaving = players.filter((p) => req.body[`del_${p.id}`]);
+  const clears = leaving.some((p) => inRounds.has(p.id));
+  if (clears && scored) return back(res, '/desk/americano', 'err', 'A round already has a score, so a player in the rounds cannot be removed. Empty the scores first. Nothing was saved.');
   tx(() => {
+    if (clears) { run('DELETE FROM am_matches'); setSetting('am_winner', ''); setSetting('am_runner', ''); }
     for (const p of players) {
       if (req.body[`del_${p.id}`]) { run('DELETE FROM am_players WHERE id = ?', p.id); continue; }
       const v = read(p.id);
@@ -670,17 +676,15 @@ app.post('/admin/americano/players', requireRole('admin'), (req, res) => {
     const n = read('new');
     if (n.name) run('INSERT INTO am_players (name, label, team_id, sort) VALUES (?, ?, ?, (SELECT COALESCE(MAX(sort), 0) + 1 FROM am_players))', n.name, n.label, n.team);
   });
-  back(res, '/desk/americano', 'msg', 'Players saved.');
+  back(res, '/desk/americano', 'msg', clears ? 'Players saved. The old rounds were cleared: create the rounds again.' : 'Players saved.');
 });
 
 app.post('/admin/americano/generate', requireRole('admin'), (req, res) => {
-  const ids = all('SELECT id FROM am_players ORDER BY sort, id').map((p) => p.id);
-  if (ids.length === 4 && !req.body.four) return back(res, '/desk/americano', 'err', 'With four players the format is only a draft. Tick the box to confirm the committee agreed to it.');
-  const rounds = amSchedule(ids);
-  if (!rounds) return back(res, '/desk/americano', 'err', 'The event needs five players, or four for the draft format.');
+  const rounds = amSchedule(all('SELECT id FROM am_players ORDER BY sort, id').map((p) => p.id));
+  if (!rounds) return back(res, '/desk/americano', 'err', 'The exhibition needs exactly four players.');
   tx(() => {
     run('DELETE FROM am_matches');
-    for (const r of rounds) run('INSERT INTO am_matches (round, a1, a2, b1, b2, bye) VALUES (?, ?, ?, ?, ?, ?)', r.round, r.a[0], r.a[1], r.b[0], r.b[1], r.bye);
+    for (const r of rounds) run('INSERT INTO am_matches (round, a1, a2, b1, b2) VALUES (?, ?, ?, ?, ?)', r.round, r.a[0], r.a[1], r.b[0], r.b[1]);
     setSetting('am_winner', '');
     setSetting('am_runner', '');
   });
@@ -773,28 +777,40 @@ app.post('/admin/showdown', admin, (req, res) => {
 app.post('/admin/showdowns', admin, (req, res) => {
   const valid = new Set(all('SELECT id FROM teams').map((t) => t.id));
   const rows = all('SELECT * FROM showdowns');
+  const clock = (v) => (/^\d{2}:\d{2}$/.test(v || '') ? v : null);
+  const court = (v) => String(v || '').trim().slice(0, 40) || null;
   const next = [];
   for (const sd of rows) {
     if (req.body[`team_a_${sd.id}`] === undefined) continue;
     const a = valid.has(req.body[`team_a_${sd.id}`]) ? req.body[`team_a_${sd.id}`] : null;
     const b = valid.has(req.body[`team_b_${sd.id}`]) ? req.body[`team_b_${sd.id}`] : null;
     if (a && a === b) return back(res, '/admin?tab=setup', 'err', 'A school cannot play itself. Nothing was saved.');
-    const t = req.body[`time_${sd.id}`] || '';
-    const time = /^\d{2}:\d{2}$/.test(t) ? t : null;
-    const court = String(req.body[`court_${sd.id}`] || '').trim().slice(0, 40) || null;
-    if (sd.team_a !== a || sd.team_b !== b || sd.start_time !== time || sd.court !== court) next.push({ sd, a, b, time, court });
+    const time = clock(req.body[`time_${sd.id}`]);
+    const where = court(req.body[`court_${sd.id}`]);
+    if (sd.team_a !== a || sd.team_b !== b || sd.start_time !== time || sd.court !== where) next.push({ sd, a, b, time, court: where });
+  }
+  const categories = [];
+  for (const m of all('SELECT * FROM matches')) {
+    if (req.body[`mt_${m.id}`] === undefined) continue;
+    const time = clock(req.body[`mt_${m.id}`]);
+    const where = court(req.body[`mc_${m.id}`]);
+    if (m.plan_time !== time || m.plan_court !== where) categories.push({ m, time, court: where });
   }
   tx(() => {
-    for (const { sd, a, b, time, court } of next) {
+    for (const { sd, a, b, time, court: where } of next) {
       if (sd.team_a !== a || sd.team_b !== b) {
         // Lineups belong to the schools that were removed, so they cannot carry over.
         run('DELETE FROM lineups WHERE match_id IN (SELECT id FROM matches WHERE showdown_id = ?) AND team_id NOT IN (?, ?)', sd.id, a || '', b || '');
         run('DELETE FROM tickets WHERE match_id IN (SELECT id FROM matches WHERE showdown_id = ?) AND team_id NOT IN (?, ?)', sd.id, a || '', b || '');
       }
-      run('UPDATE showdowns SET team_a = ?, team_b = ?, start_time = ?, court = ? WHERE id = ?', a, b, time, court, sd.id);
+      run('UPDATE showdowns SET team_a = ?, team_b = ?, start_time = ?, court = ? WHERE id = ?', a, b, time, where, sd.id);
+      // A new time or court for the showdown drops any court the desk had set on matches that have not started.
+      if (sd.start_time !== time || sd.court !== where) run("UPDATE matches SET court = NULL WHERE showdown_id = ? AND status = 'scheduled'", sd.id);
     }
+    for (const c of categories) run("UPDATE matches SET plan_time = ?, plan_court = ?, court = CASE WHEN status = 'scheduled' THEN NULL ELSE court END WHERE id = ?", c.time, c.court, c.m.id);
   });
-  back(res, '/admin?tab=setup#fixtures', 'msg', next.length ? `Saved ${next.length} showdown${next.length === 1 ? '' : 's'}.` : 'Nothing had changed.');
+  const parts = [next.length ? `${next.length} showdown${next.length === 1 ? '' : 's'}` : '', categories.length ? `${categories.length} category match${categories.length === 1 ? '' : 'es'}` : ''].filter(Boolean);
+  back(res, '/admin?tab=setup#fixtures', 'msg', parts.length ? `Saved ${parts.join(' and ')}.` : 'Nothing had changed.');
 });
 
 app.post('/admin/showdown/:id/delete', admin, (req, res) => {
@@ -1007,6 +1023,7 @@ backfillPhotos();
 // Existing databases start private: the organizer opens the site from Admin > Settings.
 if (!getSetting('visibility')) setSetting('visibility', 'staff');
 ensureAdmin(process.env.ADMIN_EMAIL);
+migrate();
 // Placeholder logins use @bos.local; rename the ones first created under another ending.
 run("UPDATE users SET email = replace(email, '@bos.invalid', '@bos.local') WHERE email LIKE '%@bos.invalid' AND replace(email, '@bos.invalid', '@bos.local') NOT IN (SELECT email FROM users)");
 // The venue has six courts; move databases still holding the first four-court default.
@@ -1026,6 +1043,7 @@ if (!isProd) {
 }
 
 app.listen(PORT, () => {
+  dataCheck();
   console.log(`Battle of Schools scores running at http://localhost:${PORT}`);
   if (!isProd) console.log('Local test logins: admin@bos.local, desk@bos.local, captain.acs@bos.local, captain.jis@bos.local (the sign-in link is shown on the login page)');
   if (isProd && !mailConfigured()) console.log('Email is not configured (RESEND_API_KEY and MAIL_FROM). Sign-in links can only be created by an admin.');

@@ -1,7 +1,7 @@
 // End-to-end checks for booth conflicts, review holds, the social bonus, the School Yard Champion ledger and the
 // Gold Americano. Run only against a throwaway local server: it wipes results.
 // Usage: node scripts/e2e-day2.mjs http://localhost:3111 <path to that server's bos.db>
-// Needs the local test sessions testadmin / testdesk / testcap in that database.
+// Needs the local test sessions testadmin / testdesk / testcap / testcapjis in that database.
 import { DatabaseSync } from 'node:sqlite';
 
 const base = process.argv[2];
@@ -110,29 +110,89 @@ ok((await pageOf(`/desk/activity?team=${team}`)).includes('name="f_pin"'), 'the 
 res = await q({ f_pin: '2' }, 'testcap');
 ok(res.status === 403, 'a captain cannot use it');
 
-// --- Gold Americano ---
+// --- Gold exhibition: four players, three rounds ---
 const rosterBefore = db.prepare('SELECT COUNT(*) n FROM players').get().n;
 const goldActive = db.prepare('SELECT COUNT(*) n FROM players WHERE is_gold = 1 AND active = 1').get().n;
-for (const [name, label] of [['Player One', 'ACS'], ['Player Two', 'BSJ'], ['Player Three', 'JIS'], ['Player Four', 'Free agent']]) await post('/admin/americano/players', { name_new: name, label_new: label }, 'testadmin');
+const addAm = (name, label) => post('/admin/americano/players', { name_new: name, label_new: label }, 'testadmin');
+for (const [name, label] of [['Player One', 'ACS'], ['Player Two', 'BSJ'], ['Player Three', 'JIS'], ['Player Four', 'Free'], ['Player Five', 'TBC']]) await addAm(name, label);
 res = await post('/admin/americano/generate', {}, 'testadmin');
-ok(/err=/.test(loc(res)) && db.prepare('SELECT COUNT(*) n FROM am_matches').get().n === 0, 'four players get no rounds unless the draft format is confirmed');
-await post('/admin/americano/players', { name_new: 'Player Five', label_new: 'TBC' }, 'testadmin');
+ok(/err=/.test(loc(res)) && db.prepare('SELECT COUNT(*) n FROM am_matches').get().n === 0, 'five players get no rounds');
+const idOf = (name) => db.prepare('SELECT id FROM am_players WHERE name = ?').get(name).id;
+await post('/admin/americano/players', { [`del_${idOf('Player Five')}`]: 'on' }, 'testadmin');
 res = await post('/admin/americano/generate', {}, 'testdesk');
 ok(res.status === 403, 'only an admin can create the rounds');
 await post('/admin/americano/generate', {}, 'testadmin');
-const ms = db.prepare('SELECT * FROM am_matches ORDER BY round').all();
-ok(ms.length === 5 && new Set(ms.map((m) => m.bye)).size === 5, 'five players get five rounds with a different player sitting out each time');
-res = await post('/desk/americano/scores', { [`a_${ms[0].id}`]: '10', [`b_${ms[0].id}`]: '150' });
-ok(/err=/.test(loc(res)) && db.prepare('SELECT status FROM am_matches WHERE id = ?').get(ms[0].id).status === 'scheduled', 'a typing-mistake score is refused');
-const scores = [[10, 6], [8, 8], [17, 4], [9, 7], [11, 13]];
-res = await post('/desk/americano/scores', Object.fromEntries(ms.flatMap((m, i) => [[`a_${m.id}`, scores[i][0]], [`b_${m.id}`, scores[i][1]]])));
-ok(res.status === 303 && db.prepare("SELECT COUNT(*) n FROM am_matches WHERE status = 'done'").get().n === 5, 'all five matches saved, including an 8–8 draw');
+let ms = db.prepare('SELECT * FROM am_matches ORDER BY round').all();
+ok(ms.length === 3, 'four players get three rounds');
+// Safe replacement while nothing is scored: removing a player who is in the rounds clears them, in the same save as adding another.
+res = await post('/admin/americano/players', { [`del_${idOf('Player Four')}`]: 'on', name_new: 'Player Six', label_new: 'NZSJ' }, 'testadmin');
+ok(res.status === 303 && !/err=/.test(loc(res)) && db.prepare('SELECT COUNT(*) n FROM am_players').get().n === 4 && db.prepare('SELECT COUNT(*) n FROM am_matches').get().n === 0, 'a player can be swapped before any score, and the old rounds are cleared');
+await post('/admin/americano/generate', {}, 'testadmin');
+ms = db.prepare('SELECT * FROM am_matches ORDER BY round').all();
+res = await post('/desk/americano/scores', { [`a_${ms[0].id}`]: '4', [`b_${ms[0].id}`]: '3' });
+ok(/err=/.test(loc(res)) && db.prepare('SELECT status FROM am_matches WHERE id = ?').get(ms[0].id).status === 'scheduled', '4–3 without its tiebreak is refused');
+res = await post('/desk/americano/scores', { [`a_${ms[0].id}`]: '4', [`b_${ms[0].id}`]: '3', [`ta_${ms[0].id}`]: '5', [`tb_${ms[0].id}`]: '4', [`a_${ms[1].id}`]: '4', [`b_${ms[1].id}`]: '1', [`a_${ms[2].id}`]: '4', [`b_${ms[2].id}`]: '0' });
+ok(res.status === 303 && db.prepare("SELECT COUNT(*) n FROM am_matches WHERE status = 'done'").get().n === 3, 'three rounds saved with the tiebreak recorded');
+res = await post('/admin/americano/players', { [`del_${idOf('Player Six')}`]: 'on' }, 'testadmin');
+ok(/err=/.test(loc(res)) && db.prepare('SELECT COUNT(*) n FROM am_players').get().n === 4, 'once a round is scored, a player in it cannot be removed');
 const tvp = await pageOf('/partial/tv-americano');
-ok(tvp.includes('Player One') && tvp.includes('Round 5'), 'the TV screen shows the table and the rounds');
-ok(db.prepare("SELECT COUNT(*) n FROM matches WHERE status != 'scheduled'").get().n === 0 && db.prepare('SELECT COUNT(*) n FROM tickets').get().n === 0 && db.prepare('SELECT COUNT(*) n FROM lineups').get().n === 0, 'the Americano touches no school match, ticket or lineup');
-ok(db.prepare('SELECT COUNT(*) n FROM players').get().n === rosterBefore && db.prepare('SELECT COUNT(*) n FROM players WHERE is_gold = 1 AND active = 1').get().n === goldActive, 'Americano players are not added to a school roster and no Gold Player is activated');
-const st = await pageOf('/partial/public');
-ok(!st.includes('Player One'), 'the Americano does not appear in the school standings page');
-ok((await fetch(`${base}/tv/americano`, { redirect: 'manual' })).status === 302 && (await fetch(`${base}/desk/award`, { redirect: 'manual' })).status === 302, 'the new pages are private when signed out');
+ok(tvp.includes('Player One') && tvp.includes('Round 3') && tvp.includes('Tiebreak 5–4') && !/rally|share/i.test(tvp), 'the TV shows games and the tiebreak, with no rally or shared-place wording');
+ok(db.prepare("SELECT COUNT(*) n FROM matches WHERE status != 'scheduled'").get().n === 0 && db.prepare('SELECT COUNT(*) n FROM tickets').get().n === 0 && db.prepare('SELECT COUNT(*) n FROM lineups').get().n === 0, 'the exhibition touches no school match, ticket or lineup');
+ok(db.prepare('SELECT COUNT(*) n FROM players').get().n === rosterBefore && db.prepare('SELECT COUNT(*) n FROM players WHERE is_gold = 1 AND active = 1').get().n === goldActive, 'no roster or Gold Player status changes');
+
+// --- Category courts and times ---
+const sd = db.prepare("SELECT * FROM showdowns WHERE stage = 'group' ORDER BY round, slot LIMIT 1").get();
+const cats = () => db.prepare("SELECT * FROM matches WHERE showdown_id = ? ORDER BY CASE category WHEN 'men' THEN 0 WHEN 'women' THEN 1 ELSE 2 END").all(sd.id);
+const women = cats()[1];
+const otherCourt = sd.court === 'Court 2' ? 'Court 5' : 'Court 2';
+const sdFields = { [`team_a_${sd.id}`]: sd.team_a, [`team_b_${sd.id}`]: sd.team_b, [`time_${sd.id}`]: sd.start_time || '09:05', [`court_${sd.id}`]: sd.court || 'Court 1' };
+await post(`/desk/match/${women.id}/court`, { court: otherCourt, go: 'save' });
+ok(cats()[1].court === otherCourt && cats()[1].status === 'scheduled', 'the desk can save a court without starting the match');
+await post('/admin/reset', { confirm: 'RESET', lineups: 'on', yard: 'on' }, 'testadmin');
+db.prepare('UPDATE showdowns SET team_a = ?, team_b = ? WHERE id = ?').run(sd.team_a, sd.team_b, sd.id);
+ok(cats().every((m) => m.court === null), 'reset drops every court the desk had set');
+db.prepare('UPDATE matches SET court = ? WHERE id = ?').run(otherCourt, women.id);
+await post('/admin/showdowns', { ...sdFields, [`court_${sd.id}`]: 'Court 6' }, 'testadmin');
+ok(cats().every((m) => m.court === null), 'changing the showdown court drops stale category courts');
+await post('/admin/showdowns', { ...sdFields, [`court_${sd.id}`]: 'Court 6', [`mt_${women.id}`]: '15:45', [`mc_${women.id}`]: 'Court 2' }, 'testadmin');
+ok(cats()[1].plan_time === '15:45' && cats()[1].plan_court === 'Court 2' && cats()[0].plan_court === null, 'an admin can set one category its own court and time');
+let desk = await pageOf(`/desk/showdown/${sd.id}`);
+ok(desk.includes('Scheduled 15:45 · Court 2') && desk.includes('Court 6'), 'the desk shows each category its own schedule');
+await post('/admin/reset', { confirm: 'RESET', lineups: 'on', yard: 'on' }, 'testadmin');
+ok(cats()[1].plan_court === 'Court 2', 'reset keeps the planned category courts');
+db.prepare('UPDATE matches SET plan_court = NULL, plan_time = NULL WHERE showdown_id = ?').run(sd.id);
+
+// --- Captain privacy and locking ---
+db.prepare("UPDATE settings SET value = 'captains' WHERE key = 'visibility'").run();
+const acs = db.prepare("SELECT * FROM showdowns WHERE stage = 'group' AND (team_a = 'acs' OR team_b = 'acs') ORDER BY round LIMIT 1").get()
+  || (db.prepare("UPDATE showdowns SET team_a = 'acs', team_b = 'jis' WHERE id = ?").run(sd.id), db.prepare('SELECT * FROM showdowns WHERE id = ?').get(sd.id));
+db.prepare("UPDATE showdowns SET team_a = 'acs', team_b = 'jis' WHERE id = ?").run(acs.id);
+const open = db.prepare("SELECT * FROM matches WHERE showdown_id = ? AND category = 'open'").get(acs.id);
+const two = (team) => db.prepare("SELECT id, name FROM players WHERE team_id = ? AND active = 1 AND is_gold = 0 AND level != 'silver' ORDER BY id LIMIT 2").all(team);
+const [a1, a2] = two('acs'); const [j1, j2] = two('jis');
+const seeAs = async (cookie, url) => { const r = await fetch(base + url, { redirect: 'manual', headers: { Cookie: `bos_sid=${cookie}` } }); return { status: r.status, body: await r.text() }; };
+await post(`/captain/lineup/${open.id}`, { p1: String(j1.id), p2: String(j2.id) }, 'testcapjis');
+const pairShown = (body) => body.includes(`${j1.name} / ${j2.name}`);
+let v = await seeAs('testcap', '/captain');
+let board = await seeAs('testcap', '/partial/public');
+let tvb = await seeAs('testcap', '/partial/tv');
+ok(!pairShown(v.body) && !pairShown(board.body) && !pairShown(tvb.body), 'the opponent cannot see a submitted pair on the captain page, live scores or TV');
+res = await post(`/captain/jis/lineup/${open.id}`, { p1: String(j1.id), p2: String(j2.id) }, 'testcap');
+ok(res.status === 404, 'a captain cannot act for another school');
+ok((await seeAs('testcap', '/admin')).status === 403 && (await seeAs('testcap', '/desk')).status === 403 && (await seeAs('testcap', '/admin/export.json')).status === 403, 'a captain cannot open admin, the desk or the export');
+await post(`/captain/lineup/${open.id}`, { p1: String(a1.id), p2: String(a2.id) }, 'testcap');
+v = await seeAs('testcap', '/captain');
+ok(pairShown(v.body), 'both pairs are revealed once both captains have submitted');
+const stored = () => JSON.stringify(db.prepare('SELECT team_id, p1, p2 FROM lineups WHERE match_id = ? ORDER BY team_id').all(open.id));
+const locked = stored();
+res = await post(`/captain/lineup/${open.id}`, { p1: String(a2.id), p2: String(a1.id) }, 'testcap');
+ok(/err=/.test(loc(res)) && stored() === locked, 'a revealed category is locked against change');
+res = await post(`/captain/lineup/${open.id}/withdraw`, {}, 'testcapjis');
+ok(/err=/.test(loc(res)) && stored() === locked, 'and cannot be withdrawn');
+const signedOut = await fetch(`${base}/partial/public`);
+ok(signedOut.status === 401, 'the public still sees nothing');
+db.prepare("UPDATE settings SET value = 'staff' WHERE key = 'visibility'").run();
+await post('/admin/reset', { confirm: 'RESET', lineups: 'on', yard: 'on' }, 'testadmin');
+
 console.log(`${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);

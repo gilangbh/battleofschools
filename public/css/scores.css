@@ -207,3 +207,4 @@
   .ls-table .ls-total{font-size:1.1rem}
 }
 .ls-pending{display:block;font-size:.62rem;font-weight:600;letter-spacing:.04em;color:var(--ink-soft);white-space:nowrap}
+.ls-when{display:block;font-size:.62rem;font-weight:600;letter-spacing:.06em;color:var(--ink-soft);margin-top:.1rem}\n

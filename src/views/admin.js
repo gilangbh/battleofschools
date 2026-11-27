@@ -3,6 +3,7 @@ import { STAGE_LABEL } from '../rules.js';
 
 const TABS = [['setup', 'Draw and fixtures'], ['people', 'Logins'], ['players', 'Players'], ['settings', 'Settings']];
 const PENCIL = raw('<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>');
+const CAT_SHORT = { men: 'Men’s', women: 'Women’s', open: 'Open' };
 const opt = (value, label, selected) => h`<option value="${value}"${selected ? raw(' selected') : ''}>${label}</option>`;
 
 function setupTab(state) {
@@ -56,7 +57,13 @@ function setupTab(state) {
         <td><input type="time" name="time_${sd.id}" value="${sd.start_time || ''}" aria-label="Start time" data-fx="time"></td>
         <td><select name="court_${sd.id}" aria-label="Court" data-fx="court">${opt('', 'Not set', !sd.court)}${state.courts.map((c) => opt(c, c, sd.court === c))}</select></td>
         <td><button class="fx-del" type="submit" form="del-${sd.id}" aria-label="Delete this showdown" title="Delete this showdown">×</button></td>
-      </tr>`)}</tbody>`;
+      </tr>
+      <tr class="fx-cats"><td colspan="5"><details${sd.stage !== 'group' ? raw(' open') : ''}>
+        <summary>Category courts and times${sd.matches.some((m) => m.plan_court || m.plan_time) ? h` <b>· set: ${sd.matches.map((m) => `${CAT_SHORT[m.category]} ${[m.plan_time, m.plan_court].filter(Boolean).join(' ') || 'as showdown'}`).join(' · ')}</b>` : h` <span>· same as the showdown</span>`}</summary>
+        <div class="fx-cat-grid">${sd.matches.map((m) => h`<div><b>${CAT_SHORT[m.category]}</b>
+          <input type="time" name="mt_${m.id}" value="${m.plan_time || ''}" aria-label="${CAT_SHORT[m.category]} time, ${title}">
+          <select name="mc_${m.id}" aria-label="${CAT_SHORT[m.category]} court, ${title}">${opt('', 'As showdown', !m.plan_court)}${state.courts.map((c) => opt(c, c, m.plan_court === c))}</select></div>`)}</div>
+      </details></td></tr>`)}</tbody>`;
     })}
   </table></div>
   <div class="save-bar"><button class="button" type="submit">Save all</button><span class="save-note" data-dirty-note>No unsaved changes.</span></div>

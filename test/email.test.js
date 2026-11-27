@@ -1,7 +1,10 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
-process.env.DATA_DIR = process.env.DATA_DIR || new URL('../data-test-email', import.meta.url).pathname.replace(/^\/([A-Za-z]:)/, '$1');
+const fs = await import('node:fs');
+const os = await import('node:os');
+const path = await import('node:path');
+process.env.DATA_DIR ||= fs.mkdtempSync(path.join(os.tmpdir(), 'bos-email-'));
 const { loginEmail, LOGIN_SUBJECT } = await import('../src/email.js');
 
 test('the sign-in email has an HTML and a plain-text version with the link, expiry and subject', () => {

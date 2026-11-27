@@ -107,13 +107,17 @@ export function loadState() {
     const sd = sdById.get(m.showdown_id);
     if (!sd) continue;
     m.sd = sd;
-    m.court = m.court || sd.court || '';
+    m.court = m.court || m.plan_court || sd.court || '';
+    m.time = m.plan_time || sd.start_time || '';
     m.lineup = { a: null, b: null };
     m.tickets = [];
     sd.matches.push(m);
     matchById.set(m.id, m);
   }
-  for (const sd of showdowns) sd.matches.sort((x, y) => CATEGORIES.indexOf(x.category) - CATEGORIES.indexOf(y.category));
+  for (const sd of showdowns) {
+    sd.matches.sort((x, y) => CATEGORIES.indexOf(x.category) - CATEGORIES.indexOf(y.category));
+    sd.courtText = [...new Set(sd.matches.map((m) => m.court).filter(Boolean))].join(', ') || sd.court || '';
+  }
 
   for (const t of tickets) {
     const m = matchById.get(t.match_id);
@@ -254,7 +258,7 @@ export function fillKnockout() {
 /** Removes every score. Lineups with their tickets, and School Yard results with the bonus, go only when asked. */
 export function resetResults({ lineups = true, yard = true } = {}) {
   tx(() => {
-    run("UPDATE matches SET status = 'scheduled', score_a = NULL, score_b = NULL, tb_a = NULL, tb_b = NULL, started_at = NULL, finished_at = NULL");
+    run("UPDATE matches SET status = 'scheduled', court = NULL, score_a = NULL, score_b = NULL, tb_a = NULL, tb_b = NULL, started_at = NULL, finished_at = NULL");
     if (lineups) {
       run('DELETE FROM tickets');
       run('DELETE FROM lineups');

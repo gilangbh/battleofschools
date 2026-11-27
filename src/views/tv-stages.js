@@ -31,7 +31,7 @@ function categoryRow(state, m) {
   };
   return h`<div class="kb-cat is-${m.status}">
     ${cell('a')}
-    <div class="kb-cat-mid"><span>${CAT[m.category]}</span>${m.status === 'live' ? h`<i class="sb-chip is-live">Live${m.court ? ` · ${m.court.replace(/^court\s*/i, 'Ct ')}` : ''}</i>` : m.status === 'done' ? h`<i>Final</i>` : h`<i>${m.court || ''}</i>`}</div>
+    <div class="kb-cat-mid"><span>${CAT[m.category]}</span>${m.status === 'live' ? h`<i class="sb-chip is-live">Live${m.court ? ` · ${m.court.replace(/^court\s*/i, 'Ct ')}` : ''}</i>` : m.status === 'done' ? h`<i>Final</i>` : h`<i>${[m.time, m.court ? m.court.replace(/^court\s*/i, 'Ct ') : ''].filter(Boolean).join(' · ')}</i>`}</div>
     ${cell('b')}
   </div>`;
 }
@@ -46,7 +46,7 @@ function tie(state, sd, seedA, seedB) {
     <b class="kb-cats-won${team ? '' : ' is-none'}" data-k="c${sd.id}${key}">${team ? (key === 'a' ? s.catsA : s.catsB) : '–'}</b>
   </div>`;
   return h`<article class="kb-tie is-${sd.stage} is-${state_}">
-    <header class="kb-head"><div><b>${tieTitle(sd)}</b><span>${[sd.court, sd.stage === 'final' ? 'Championship court' : null].filter(Boolean).join(' · ') || 'Court to be confirmed'}</span></div><span class="sb-chip${state_ === 'live' ? ' is-live' : ''}">${chip}</span></header>
+    <header class="kb-head"><div><b>${tieTitle(sd)}</b><span>${[sd.courtText, sd.stage === 'final' ? 'Championship court' : null].filter(Boolean).join(' · ') || 'Court to be confirmed'}</span></div><span class="sb-chip${state_ === 'live' ? ' is-live' : ''}">${chip}</span></header>
     <div class="kb-schools">${school(sd.a, 'a', seedA)}<span class="kb-v">v</span>${school(sd.b, 'b', seedB)}</div>
     <p class="kb-rule">Categories won · first to two</p>
     <div class="kb-catlist">${sd.matches.map((m) => categoryRow(state, m))}</div>

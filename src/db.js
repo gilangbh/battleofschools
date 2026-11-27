@@ -124,6 +124,13 @@ CREATE TABLE IF NOT EXISTS am_matches (
 );
 `);
 
+// Planned court and time for one category match (blank = the showdown's). matches.court is only where the desk
+// actually put the match. The exhibition records its tiebreak separately.
+addColumn('matches', 'plan_court', 'TEXT');
+addColumn('matches', 'plan_time', 'TEXT');
+addColumn('am_matches', 'tb_a', 'INTEGER');
+addColumn('am_matches', 'tb_b', 'INTEGER');
+
 // A school's final points for one station, typed straight into the overview table. When present it is used for
 // the standings in place of the showdown-by-showdown results, which stay on record as evidence.
 db.exec(`

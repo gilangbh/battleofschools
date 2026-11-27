@@ -590,3 +590,15 @@ tr.is-tied small{color:#b4291d}
 .yq-final small{display:block;margin-top:.25rem;max-width:8.5rem;line-height:1.25;white-space:normal}
 .yq-plain{font-size:1.05rem}
 .yard-table td.yq-final{vertical-align:top}
+
+/* Category courts and times; exhibition tiebreak */
+.fx-cats td{padding:0 .6rem .4rem!important;border-top:0!important}
+.fx-cats summary{cursor:pointer;font-size:.78rem;font-weight:600;color:#4d5e74}
+.fx-cats summary b{color:var(--navy)}
+.fx-cat-grid{display:flex;flex-wrap:wrap;gap:.5rem 1.4rem;padding:.4rem 0}
+.fx-cat-grid > div{display:flex;align-items:center;gap:.4rem}
+.fx-cat-grid b{font-size:.8rem;min-width:4.2rem}
+.fx-cat-grid input,.fx-cat-grid select{min-height:38px;width:auto;padding:.2rem .4rem;font-size:.85rem}
+.dm-plan{margin:0 0 .5rem;font-size:.8rem;font-weight:600;color:#4d5e74}
+.am-tb{display:flex;align-items:center;justify-content:center;gap:.5rem;margin-top:.5rem;font-size:.78rem;color:#4d5e74}
+.am-tb input{width:3.6rem;min-height:36px;text-align:center;padding:.2rem}

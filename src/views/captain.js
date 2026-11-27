@@ -15,7 +15,7 @@ function lineupBlock(state, team, m, goldLeft, base) {
   const side = sd.team_a === team.id ? 'a' : 'b';
   const mine = m.lineup[side];
   const opp = side === 'a' ? sd.b : sd.a;
-  const head = h`<p class="lineup-cat">${categoryTag(m.category)}${m.court ? h`<span class="chip">${m.court}</span>` : ''}</p>`;
+  const head = h`<p class="lineup-cat">${categoryTag(m.category)}${m.time || m.court ? h`<span class="chip">${[m.time, m.court].filter(Boolean).join(' · ')}</span>` : ''}</p>`;
 
   if (m.revealed) {
     const score = scoreText(m);
@@ -61,7 +61,7 @@ export function captainPage(state, user, team, query) {
   const card = (sd) => {
     const opp = sd.team_a === team.id ? sd.b : sd.a;
     return h`<article class="showdown-card">
-      <header><h3>${showdownTitle(sd)} <span>v</span> ${opp ? h`${teamMark(opp)} ${opp.name}` : 'To be decided'}</h3><p class="fixture-meta">${[sd.start_time, sd.court].filter(Boolean).join(' · ')}</p></header>
+      <header><h3>${showdownTitle(sd)} <span>v</span> ${opp ? h`${teamMark(opp)} ${opp.name}` : 'To be decided'}</h3><p class="fixture-meta">${[sd.start_time, sd.courtText].filter(Boolean).join(' · ')}</p></header>
       <div class="lineup-grid">${sd.matches.map((m) => lineupBlock(state, team, m, bal.goldLeft, base))}</div>
     </article>`;
   };

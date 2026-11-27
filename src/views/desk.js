@@ -28,7 +28,7 @@ export function deskPage(state, user, query) {
     const ko = isKnockout(sd.stage);
     return h`<li><a class="desk-item" href="/desk/showdown/${sd.id}">
       <span class="desk-teams">${teamMark(sd.a)}<strong>${sd.a ? sd.a.name : 'To be decided'}</strong><span>v</span>${teamMark(sd.b)}<strong>${sd.b ? sd.b.name : 'To be decided'}</strong></span>
-      <span class="desk-meta">${[sd.start_time, sd.court].filter(Boolean).join(' · ')}</span>
+      <span class="desk-meta">${[sd.start_time, sd.courtText].filter(Boolean).join(' · ')}</span>
       <span class="desk-states">${sd.matches.map((m) => h`<span class="state state-${m.status}">${SHORT[m.category]}${m.status === 'done' ? h` <b>${scoreText(m)}</b>` : m.status === 'live' ? h` · ${m.court || 'on court'}` : ''}</span>`)}</span>
       ${s.done ? h`<span class="desk-total">${ko ? s.catsA : s.gamesA}–${ko ? s.catsB : s.gamesB}</span>` : h`<span class="desk-total is-empty">Open</span>`}
     </a></li>`;
@@ -147,10 +147,12 @@ function matchCard(state, m) {
 
   return h`<article class="dm dm-${m.status}" id="match-${m.id}" data-total="${ko ? '' : GROUP_GAMES}" data-target="${ko ? KNOCKOUT_TARGET : ''}">
     <header class="dm-head"><h2>${categoryTag(m.category)}</h2>${statusChip(m)}</header>
+    ${m.status === 'scheduled' && (m.time || m.court) ? h`<p class="dm-plan">Scheduled ${[m.time, m.court].filter(Boolean).join(' · ')}</p>` : ''}
 
     ${m.status === 'scheduled' ? h`<form method="post" action="/desk/match/${m.id}/court" id="cf-${m.id}" class="dm-court">
       <span class="dm-label">Court</span>${courtChips(state, m, `cf-${m.id}`)}
       <button class="button small lime" type="submit" name="go" value="live">Start match</button>
+      <button class="button small ghost" type="submit" name="go" value="save">Save court only</button>
     </form>` : ''}
 
     ${teamBlock(state, m, 'a')}

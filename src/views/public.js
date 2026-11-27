@@ -24,7 +24,8 @@ export function fixtureCard(state, sd, title = null) {
     const tb = key === 'a' ? m.tb_a : m.tb_b;
     return h`<td class="${matchWinner(m) === key ? 'is-lead' : ''}"><span class="ls-num"${m.status === 'live' ? raw(` data-k="f${m.id}${key}"`) : ''}>${score == null ? '–' : score}${tb != null ? h`<sup>${tb}</sup>` : ''}</span>${pairLine(pairNames(state, m, key))}</td>`;
   };
-  const meta = [title, status === 'next' ? null : sd.start_time, sd.court].filter(Boolean);
+  const meta = [title, status === 'next' ? null : sd.start_time, sd.courtText].filter(Boolean);
+  const own = (m) => (ko || m.court !== sd.court || m.time !== sd.start_time ? [m.time, m.court].filter(Boolean).join(' · ') : '');
   return h`<li class="ls-fx is-${status}" data-teams="${[sd.team_a, sd.team_b].filter(Boolean).join(' ')}">
   <header class="ls-fx-head"><span>${meta.join(' · ') || 'Time and court to be confirmed'}</span><span class="ls-chip is-${status}">${chip}</span></header>
   <div class="ls-fx-top">
@@ -36,7 +37,7 @@ export function fixtureCard(state, sd, title = null) {
     <caption class="visually-hidden">${sd.a ? sd.a.name : 'To be decided'} v ${sd.b ? sd.b.name : 'To be decided'}, by category</caption>
     <tbody>${sd.matches.map((m) => h`<tr class="${m.status === 'live' ? 'is-live' : ''}">
       ${cell(m, 'a')}
-      <th scope="row"><span class="ls-cat"><span class="tournament-sport-mark" aria-hidden="true">${ICON[m.category]}</span>${CATEGORY_LABEL[m.category]}</span>${m.status === 'live' ? h`<span class="ls-oncourt">On court${m.court ? h` · ${m.court}` : ''}</span>` : ''}</th>
+      <th scope="row"><span class="ls-cat"><span class="tournament-sport-mark" aria-hidden="true">${ICON[m.category]}</span>${CATEGORY_LABEL[m.category]}</span>${m.status === 'scheduled' && own(m) ? h`<span class="ls-when">${own(m)}</span>` : ''}${m.status === 'live' ? h`<span class="ls-oncourt">On court${m.court ? h` · ${m.court}` : ''}</span>` : ''}</th>
       ${cell(m, 'b')}
     </tr>`)}</tbody>
   </table>
@@ -70,7 +71,7 @@ function upNext(state) {
 
 function nextCard(sd) {
   return h`<li class="ls-next" data-teams="${sd.team_a} ${sd.team_b}">
-  <p class="ls-next-meta"><b>${sd.start_time || 'Time to be confirmed'}</b><span>${sd.court || 'Court to be confirmed'}</span></p>
+  <p class="ls-next-meta"><b>${sd.start_time || 'Time to be confirmed'}</b><span>${sd.courtText || 'Court to be confirmed'}</span></p>
   <p class="ls-next-teams">${teamMark(sd.a)}<strong>${sd.a.name}</strong><i>v</i>${teamMark(sd.b)}<strong>${sd.b.name}</strong></p>
 </li>`;
 }
@@ -233,10 +234,10 @@ function tvCourt(state, court, live) {
   if (!m) {
     const next = state.allMatches
       .filter((x) => x.status === 'scheduled' && x.court === court && x.sd.a && x.sd.b)
-      .sort((x, y) => x.sd.round - y.sd.round || String(x.sd.start_time || '').localeCompare(String(y.sd.start_time || '')) || x.id - y.id)[0];
+      .sort((x, y) => x.sd.round - y.sd.round || String(x.time).localeCompare(String(y.time)) || x.id - y.id)[0];
     if (!next) return h`<article class="sb-court is-free"><header class="sb-court-head">${badge}<div class="sb-court-title"><b>${court}</b><span>No match right now</span></div></header><p class="sb-ghost" aria-hidden="true">${num}</p></article>`;
     return h`<article class="sb-court is-next">
-      <header class="sb-court-head">${badge}<div class="sb-court-title"><b>${court}</b><span>${SHORT_CAT[next.category]} doubles</span></div><span class="sb-chip">Next${next.sd.start_time ? h` · ${next.sd.start_time}` : ''}</span></header>
+      <header class="sb-court-head">${badge}<div class="sb-court-title"><b>${court}</b><span>${SHORT_CAT[next.category]} doubles</span></div><span class="sb-chip">Next${next.time ? h` · ${next.time}` : ''}</span></header>
       <div class="sb-versus">
         <div class="sb-versus-team">${teamMark(next.sd.a)}<strong>${next.sd.a.name}</strong></div>
         <span class="sb-v">v</span>
