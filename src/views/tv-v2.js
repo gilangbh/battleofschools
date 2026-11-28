@@ -1,9 +1,8 @@
 // TV screen v2: scores reach the desk after a match, not during it, so this screen leads with finished
-// matches. Courts in play show who is on court without a score, and the group tables carry a School Yard column.
+// matches. Courts in play show who is on court without a score, and the group tables show School Yard and social activity points.
 import { h, teamMark, pairNames, showdownTitle } from './ui.js';
 import { matchWinner, isKnockout } from '../rules.js';
-import { fmtPoints } from '../activity.js';
-import { tvFrame, onCourt } from './public.js';
+import { tvFrame, tvStandings, onCourt } from './public.js';
 
 const CAT = { men: 'Men’s', women: 'Women’s', open: 'Open' };
 const courtNumber = (court) => (String(court).match(/\d+/) || [''])[0];
@@ -59,16 +58,6 @@ function historyCard(state, sd) {
   </article>`;
 }
 
-/** The group table from /tv with one more column: the school's School Yard points (already part of Points). */
-function standings(state, group) {
-  const rows = state.standings[group] || [];
-  return h`<table class="sb-table v2-table">
-    <caption><span>Group ${group}</span></caption>
-    <thead><tr><th></th><th scope="col">School</th><th scope="col">Games</th><th scope="col">Yard</th><th scope="col">Points</th></tr></thead>
-    <tbody>${rows.map((r) => h`<tr class="${r.place === 'qualified' || r.place === 'provisional' ? 'is-q' : r.place === 'tied' ? 'is-tied' : ''}"><td class="sb-rank">${r.rank}</td><th scope="row"><span class="sb-name">${teamMark(r.team)}<span>${r.team.name}</span></span></th><td>${r.games}</td><td>${r.yardIn ? fmtPoints(r.yard) : '–'}</td><td class="sb-total">${fmtPoints(r.total)}</td></tr>`)}</tbody>
-  </table>`;
-}
-
 export function tvV2Partial(state) {
   const cards = history(state);
   const grid = h`<div class="v2-grid">${cards.map((sd) => historyCard(state, sd))}</div>`;
@@ -86,7 +75,7 @@ export function tvV2Partial(state) {
     ? h`<div class="v2-track"><div class="v2-roll${rolls ? ' is-moving' : ''}" style="--n:${cards.length}">${grid}${rolls ? grid : ''}</div></div>`
     : h`<p class="v2-empty">Scores appear here as each match finishes.</p>`}
 </section>
-<aside class="v2-col v2-side-col">${state.groupsSet ? h`${standings(state, 'A')}${standings(state, 'B')}` : h`<p class="v2-empty">Groups are not set yet.</p>`}</aside>`;
+<aside class="v2-col v2-side-col">${state.groupsSet ? h`${tvStandings(state, 'A', { extra: true })}${tvStandings(state, 'B', { extra: true })}` : h`<p class="v2-empty">Groups are not set yet.</p>`}</aside>`;
 }
 
 export function tvV2Page(state, qrSvg, publicUrl) {

@@ -260,12 +260,13 @@ function tvCourt(state, court, live) {
   </article>`;
 }
 
-export function tvStandings(state, group) {
+/** A group table for the TV. `extra` adds the two small columns that make up Points besides games: School Yard and the social activities bonus. */
+export function tvStandings(state, group, { extra = false } = {}) {
   const rows = state.standings[group] || [];
-  return h`<table class="sb-table">
+  return h`<table class="sb-table${extra ? ' has-extra' : ''}">
     <caption><span>Group ${group}</span></caption>
-    <thead><tr><th></th><th scope="col">School</th><th scope="col">Games</th><th scope="col">Points</th></tr></thead>
-    <tbody>${rows.map((r) => h`<tr class="${r.place === 'qualified' || r.place === 'provisional' ? 'is-q' : r.place === 'tied' ? 'is-tied' : ''}"><td class="sb-rank">${r.rank}</td><th scope="row"><span class="sb-name">${teamMark(r.team)}<span>${r.team.name}</span></span></th><td>${r.games}</td><td class="sb-total">${fmtPoints(r.total)}</td></tr>`)}</tbody>
+    <thead><tr><th></th><th scope="col">School</th><th scope="col">Games</th>${extra ? h`<th scope="col">Yard</th><th scope="col">Social</th>` : ''}<th scope="col">Points</th></tr></thead>
+    <tbody>${rows.map((r) => h`<tr class="${r.place === 'qualified' || r.place === 'provisional' ? 'is-q' : r.place === 'tied' ? 'is-tied' : ''}"><td class="sb-rank">${r.rank}</td><th scope="row"><span class="sb-name">${teamMark(r.team)}<span>${r.team.name}</span></span></th><td>${r.games}</td>${extra ? h`<td class="sb-extra">${r.yardIn ? fmtPoints(r.yard) : '–'}</td><td class="sb-extra">${r.bonusIn ? fmtPoints(r.bonus) : '–'}</td>` : ''}<td class="sb-total">${fmtPoints(r.total)}</td></tr>`)}</tbody>
   </table>`;
 }
 
@@ -293,7 +294,7 @@ export function tvPartial(state) {
 </section>
 <aside class="sb-side${koActive ? ' is-compact' : ''}">
   ${koActive ? tvKnockout(state) : ''}
-  ${state.groupsSet ? h`${tvStandings(state, 'A')}${tvStandings(state, 'B')}` : h`<p class="sb-wait">Groups are set at the live draw on 25 November.</p>`}
+  ${state.groupsSet ? h`${tvStandings(state, 'A', { extra: true })}${tvStandings(state, 'B', { extra: true })}` : h`<p class="sb-wait">Groups are set at the live draw on 25 November.</p>`}
 </aside>
 <footer class="sb-ticker" aria-label="Latest results">
   <span class="sb-ticker-label">Latest results</span>

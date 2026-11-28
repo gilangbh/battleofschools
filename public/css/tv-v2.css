@@ -58,10 +58,6 @@
 .v2-row em small{color:var(--lime);font-size:.9vh}
 .v2-row.is-pending .v2-pair{opacity:.6}
 
-/* Group tables with a School Yard column */
-.v2-table thead th:nth-child(3),.v2-table thead th:nth-child(4){width:7.6vh}
-.v2-table thead th:nth-child(5){width:9.4vh}
-
 @media (prefers-reduced-motion:reduce){.v2-roll.is-moving{animation:none}}
 @media (max-aspect-ratio:1/1){
   .sb-body.v2-body{grid-template-columns:1fr}
