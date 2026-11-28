@@ -23,6 +23,7 @@ import { deskPage, deskShowdownPage } from './src/views/desk.js';
 import { activityPage } from './src/views/activity.js';
 import { awardPage, AWARD_STATIONS, AWARD_KINDS } from './src/views/award.js';
 import { loginEmail } from './src/email.js';
+import { tvV2Page, tvV2Partial } from './src/views/tv-v2.js';
 import { americanoPage, americanoPartial, americanoTvPage } from './src/views/americano.js';
 import { schedule as amSchedule, validateScore as amValidate } from './src/americano.js';
 import { migrate, dataCheck } from './src/migrate.js';
@@ -140,6 +141,8 @@ const tvScreen = (page) => async (req, res, next) => {
 app.get('/tv/knockout', tvScreen(knockoutPage));
 app.get('/tv/summary', tvScreen(summaryPage));
 app.get('/tv/americano', tvScreen(americanoTvPage));
+app.get('/tv/v2', tvScreen(tvV2Page));
+app.get('/partial/tv-v2', (req, res) => { noStore(res); res.send(String(tvV2Partial(loadState()))); });
 app.get('/partial/tv-americano', (req, res) => { noStore(res); res.send(String(americanoPartial(loadAmericano()))); });
 app.get('/partial/tv-knockout', (req, res) => { noStore(res); res.send(String(knockoutPartial(loadState()))); });
 app.get('/partial/tv-summary', (req, res) => { noStore(res); res.send(String(summaryPartial(loadState(), { secret: req.query.secret === '1' }))); });

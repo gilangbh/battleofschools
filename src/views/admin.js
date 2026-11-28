@@ -246,6 +246,7 @@ function settingsTab(state, visibility) {
   <p>Open one of these on the venue TV in full screen. Each updates by itself.</p>
   <ul class="tv-links" role="list">
     <li><a href="/tv">Group stage</a><span>Six courts with player photos, both group tables, results ticker.</span></li>
+    <li><a href="/tv/v2">Match history</a><span>Who is on each court (no live score), every finished match with its scores, and both group tables with a School Yard column.</span></li>
     <li><a href="/tv/knockout">Knockout stage</a><span>The two semifinals and the final as a bracket, category by category.</span></li>
     <li><a href="/tv/americano">Gold Americano</a><span>The individual table and the rounds of the Gold Players’ event.</span></li>
     <li><a href="/tv/summary">Final summary</a><span>Champion, finals results, both groups and every score.</span></li>

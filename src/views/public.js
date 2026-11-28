@@ -321,7 +321,7 @@ export function tvFrame(state, qrSvg, publicUrl, { title, words, src, inner, bod
     <div class="sb-partner sb-partner-media"><span>Media Partner</span><img src="/assets/sponsors/tatler-white.svg" alt="Tatler, Media Partner" width="94" height="50"></div>
   </section>
 </main>`;
-  return layout({ title, body, bare: true, bodyClass: 'sb-page', scripts: ['/js/live.js'], styles: ['/css/tv.css', '/css/sponsors.css', '/css/tv-stages.css'] });
+  return layout({ title, body, bare: true, bodyClass: 'sb-page', scripts: ['/js/live.js'], styles: ['/css/tv.css', '/css/sponsors.css', '/css/tv-stages.css', '/css/tv-v2.css'] });
 }
 
 export function tvPage(state, qrSvg, publicUrl) {

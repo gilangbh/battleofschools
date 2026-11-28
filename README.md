@@ -17,6 +17,7 @@ Then open http://localhost:3000.
 | --- | --- | --- |
 | Live scores (phone) | `/` | Everyone, no sign-in |
 | TV scoreboard with QR code | `/tv` | Venue screens, no sign-in |
+| TV match history, group tables with School Yard points | `/tv/v2` | Venue screens, no sign-in |
 | Captain lineups | `/captain` | School captains |
 | Scoring desk | `/desk` | Desk staff |
 | Admin | `/admin` | Organizer |
